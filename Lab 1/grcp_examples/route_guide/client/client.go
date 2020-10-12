@@ -29,30 +29,38 @@ import (
 	"log"
 	"math/rand"
 	"time"
+	"os"
+	
+	"ioutil"
+	"strconv"
+	"encoding/csv"
+	"encoding/json"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
+	//"google.golang.org/grpc/credentials"
 	pb "google.golang.org/grpc/examples/route_guide/routeguide"
-	"google.golang.org/grpc/testdata"
+	//"google.golang.org/grpc/testdata"
 )
 
 var (
 	tls                = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
 	caFile             = flag.String("ca_file", "", "The file containing the CA root cert file")
-	serverAddr         = flag.String("server_addr", "10.6.40.157:10000", "The server address in the format of host:port")
+	serverAddr         = flag.String("server_addr", "localhost:10000", "The server address in the format of host:port")
 	serverHostOverride = flag.String("server_host_override", "x.test.youtube.com", "The server name used to verify the hostname returned by the TLS handshake")
 )
 
 // printFeature gets the feature for the given point.
-func printFeature(client pb.RouteGuideClient, point *pb.Point) {
-	log.Printf("Getting feature for point (%d, %d)", point.Latitude, point.Longitude)
+//func printFeature(client pb.RouteGuideClient, point *pb.Point) {
+func printFeature(client pb.RouteGuideClient, pedido int) {
+//	log.Printf("Getting feature for point (%d, %d)", point.Latitude, point.Longitude)
+	log.Printf("Obtieniendo estado de pedido %d", pedido)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	feature, err := client.GetFeature(ctx, point)
+	estado, err := client.GetFeature(ctx, pedido)
 	if err != nil {
 		log.Fatalf("%v.GetFeatures(_) = _, %v: ", client, err)
 	}
-	log.Println(feature)
+	log.Println(estado)
 }
 
 // printFeatures lists all the features within the given bounding Rectangle.
@@ -77,7 +85,9 @@ func printFeatures(client pb.RouteGuideClient, rect *pb.Rectangle) {
 }
 
 // runRecordRoute sends a sequence of points to server and expects to get a RouteSummary from server.
-func runRecordRoute(client pb.RouteGuideClient) {
+func runRecordRoute(client pb.RouteGuideClient, data []byte) {
+	
+	/*
 	// Create a random number of random points
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	pointCount := int(r.Int31n(100)) + 2 // Traverse at least two points
@@ -86,16 +96,17 @@ func runRecordRoute(client pb.RouteGuideClient) {
 		points = append(points, randomPoint(r))
 	}
 	log.Printf("Traversing %d points.", len(points))
+	*/
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	stream, err := client.RecordRoute(ctx)
 	if err != nil {
 		log.Fatalf("%v.RecordRoute(_) = _, %v", client, err)
 	}
-	for _, point := range points {
-		if err := stream.Send(point); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", stream, point, err)
-		}
+
+	if err := stream.Send(data); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", stream, data, err)
 	}
 	reply, err := stream.CloseAndRecv()
 	if err != nil {
@@ -103,6 +114,7 @@ func runRecordRoute(client pb.RouteGuideClient) {
 	}
 	log.Printf("Route summary: %v", reply)
 }
+
 
 // runRouteChat receives a sequence of route notes, while sending notes for various locations.
 func runRouteChat(client pb.RouteGuideClient) {
@@ -150,9 +162,53 @@ func randomPoint(r *rand.Rand) *pb.Point {
 	return &pb.Point{Latitude: lat, Longitude: long}
 }
 
+
+// loadFeatures loads features from a ~JSON~ CSV* file.
+func (c *routeGuideClient) loadFeatures(filePath string) {
+	var data []byte
+	if filePath != "" {
+		var err error
+        //leer csv
+		data, err = ioutil.ReadFile(filePath)
+		if err != nil {
+			log.Fatalf("Failed to load default features: %v", err)
+		}
+        //csv a json
+    } else{
+        data = exampleData
+    }
+	if err := json.Unmarshal(data, &c.savedFeatures); err != nil {
+		log.Fatalf("Failed to load default features: %v", err)
+	}
+}
+
+
+
+type Retailparcel struct {
+	ID       string `json:"id"`
+	Producto string `json:"producto"`
+	Valor    int `json:"valor"`
+	Tienda   string `json:"tienda"`
+	Destino  string `json:"destino"`
+}
+
+func leer(nombre string) *os.File {
+
+	arch, err := os.Open(nombre)
+
+	if err != nil {
+		log.Fatalln("No se pudo abrir el archivo"+nombre+"para lectura", err) //chequear si está bien, o es con coma o qué
+	}
+
+	return arch
+}
+
+
 func main() {
 	flag.Parse()
 	var opts []grpc.DialOption
+
+    /*
 	if *tls {
 		if *caFile == "" {
 			*caFile = testdata.Path("ca.pem")
@@ -165,6 +221,7 @@ func main() {
 	} else {
 		opts = append(opts, grpc.WithInsecure())
 	}
+    */
 
 	opts = append(opts, grpc.WithBlock())
 	conn, err := grpc.Dial(*serverAddr, opts...)
@@ -174,6 +231,46 @@ func main() {
 	defer conn.Close()
 	client := pb.NewRouteGuideClient(conn)
 
+
+
+	csv_file, err := os.Open("retail.csv")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer csv_file.Close()
+	r := csv.NewReader(csv_file)
+	records, err := r.ReadAll()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	var rparcel Retailparcel
+	var rparcels []Retailparcel
+	for _, rec := range records {
+		rparcel.ID = rec[0]
+		rparcel.Producto = rec[1]
+		rparcel.Valor,_ = strconv.Atoi(rec[2])
+		rparcel.Tienda = rec[3]
+		rparcel.Destino = rec[4]
+		rparcels = append(rparcels, rparcel)
+	}
+	// Convert to JSON
+	json_data, err := json.Marshal(rparcels)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	//print json data
+	//fmt.Println(string(json_data))
+	fmt.Println("hola, todo bien ji")
+
+
+	runRecordRoute(client, json_data)
+
+
+
+/*
 	// Looking for a valid feature
 	printFeature(client, &pb.Point{Latitude: 409146138, Longitude: -746188906})
 
@@ -185,10 +282,40 @@ func main() {
 		Lo: &pb.Point{Latitude: 400000000, Longitude: -750000000},
 		Hi: &pb.Point{Latitude: 420000000, Longitude: -730000000},
 	})
-
+*/
 	// RecordRoute
 	runRecordRoute(client)
 
 	// RouteChat
 	runRouteChat(client)
 }
+
+// exampleData is a copy of testdata/route_guide_db.json. It's to avoid
+// specifying file path with `go run`.
+var exampleData = []byte(`[{
+    "id": "SA1554KF",
+    "producto": "polera",
+    "valor":10,
+    "tienda":tienda-A,
+    "destino":casa-A,
+},
+{ "id": "TA1558KG",
+    "producto": "pantalon",
+    "valor":5,
+    "tienda":tienda-B,
+    "destino":casa-B,
+},
+{
+    "id": "UA1559KH",
+    "producto": "vaso",
+    "valor":8,
+    "tienda":tienda-C,
+    "destino":casa-D,
+},
+{
+    "id": "VA1551KI",
+    "producto": "camion",
+    "valor":2,
+    "tienda":tienda-E,
+    "destino":casa-F,
+}]`)

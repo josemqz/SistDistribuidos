@@ -37,8 +37,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/testdata"
+	//"google.golang.org/grpc/credentials"
+	//"google.golang.org/grpc/testdata"
 
 	"github.com/golang/protobuf/proto"
 
@@ -90,25 +90,21 @@ func (s *routeGuideServer) ListFeatures(rect *pb.Rectangle, stream pb.RouteGuide
 // number of points,  number of known features visited, total distance traveled, and
 // total time spent.
 func (s *routeGuideServer) RecordRoute(stream pb.RouteGuide_RecordRouteServer) error {
-	var pointCount, featureCount, distance int32
-	var lastPoint *pb.Point
+	/*var pointCount, featureCount, distance int32
+	var lastPoint *pb.Point*/
 	startTime := time.Now()
 	for {
-		point, err := stream.Recv()
+		_, err := stream.Recv()
 		if err == io.EOF {
 			endTime := time.Now()
 			return stream.SendAndClose(&pb.RouteSummary{
-				PointCount:   pointCount,
-				FeatureCount: featureCount,
-				Distance:     distance,
 				ElapsedTime:  int32(endTime.Sub(startTime).Seconds()),
 			})
 		}
 		if err != nil {
 			return err
 		}
-		pointCount++
-		for _, feature := range s.savedFeatures {
+		/*for _, feature := range s.savedFeatures {
 			if proto.Equal(feature.Location, point) {
 				featureCount++
 			}
@@ -116,9 +112,10 @@ func (s *routeGuideServer) RecordRoute(stream pb.RouteGuide_RecordRouteServer) e
 		if lastPoint != nil {
 			distance += calcDistance(lastPoint, point)
 		}
-		lastPoint = point
+		lastPoint = point*/
 	}
 }
+
 
 // RouteChat receives a stream of message/location pairs, and responds with a stream of all
 // previous messages at each of those locations.
@@ -155,17 +152,19 @@ func (s *routeGuideServer) loadFeatures(filePath string) {
 	var data []byte
 	if filePath != "" {
 		var err error
+        //leer csv
 		data, err = ioutil.ReadFile(filePath)
 		if err != nil {
 			log.Fatalf("Failed to load default features: %v", err)
 		}
-	} else {
-		data = exampleData
+        //csv a json
 	}
+    //??
 	if err := json.Unmarshal(data, &s.savedFeatures); err != nil {
 		log.Fatalf("Failed to load default features: %v", err)
 	}
 }
+
 
 func toRadians(num float64) float64 {
 	return num * math.Pi / float64(180)
@@ -211,6 +210,7 @@ func serialize(point *pb.Point) string {
 	return fmt.Sprintf("%d %d", point.Latitude, point.Longitude)
 }
 
+
 func newServer() *routeGuideServer {
 	s := &routeGuideServer{routeNotes: make(map[string][]*pb.RouteNote)}
 	s.loadFeatures(*jsonDBFile)
@@ -219,11 +219,12 @@ func newServer() *routeGuideServer {
 
 func main() {
 	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf("10.6.40.157:%d", *port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	var opts []grpc.ServerOption
+/*
 	if *tls {
 		if *certFile == "" {
 			*certFile = testdata.Path("server1.pem")
@@ -237,6 +238,7 @@ func main() {
 		}
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
+*/
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterRouteGuideServer(grpcServer, newServer())
 	grpcServer.Serve(lis)
@@ -245,46 +247,29 @@ func main() {
 // exampleData is a copy of testdata/route_guide_db.json. It's to avoid
 // specifying file path with `go run`.
 var exampleData = []byte(`[{
-    "location": {
-        "latitude": 407838351,
-        "longitude": -746143763
-    },
-    "name": "Patriots Path, Mendham, NJ 07945, USA"
-}, {
-    "location": {
-        "latitude": 408122808,
-        "longitude": -743999179
-    },
-    "name": "101 New Jersey 10, Whippany, NJ 07981, USA"
-}, {
-    "location": {
-        "latitude": 413628156,
-        "longitude": -749015468
-    },
-    "name": "U.S. 6, Shohola, PA 18458, USA"
-}, {
-    "location": {
-        "latitude": 419999544,
-        "longitude": -740371136
-    },
-    "name": "5 Conners Road, Kingston, NY 12401, USA"
-}, {
-    "location": {
-        "latitude": 414008389,
-        "longitude": -743951297
-    },
-    "name": "Mid Hudson Psychiatric Center, New Hampton, NY 10958, USA"
-}, {
-    "location": {
-        "latitude": 419611318,
-        "longitude": -746524769
-    },
-    "name": "287 Flugertown Road, Livingston Manor, NY 12758, USA"
-}, {
-    "location": {
-        "latitude": 406109563,
-        "longitude": -742186778
-    },
-    "name": "4001 Tremley Point Road, Linden, NJ 07036, USA"
-}
+    "id": "SA1554KF",
+    "producto": "polera",
+    "valor":10,
+    "tienda":tienda-A,
+    "destino":casa-A,
+},
+{ "id": "TA1558KG",
+    "producto": "pantalon",
+    "valor":5,
+    "tienda":tienda-B,
+    "destino":casa-B,
+},
+{
+    "id": "UA1559KH",
+    "producto": "vaso",
+    "valor":8,
+    "tienda":tienda-C,
+    "destino":casa-D,
+},
+{
+    "id": "VA1551KI",
+    "producto": "camion",
+    "valor":2,
+    "tienda":tienda-E,
+    "destino":casa-F,
 }]`)
