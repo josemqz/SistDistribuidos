@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package logis;
+
+message Pedido{
+    string id = 1;
+    string producto = 2;
+    int valor = 3;
+    string tienda = 4;
+    string destino = 5;
+    int prioritario = 6;
+}
+
+message Recibo{
+    String msg = 1;
+}
+
+service LogisService{
+
+    rpc PedidoCliente(Pedido) returns (Recibo) {}
+
+    //rpc recibir solicitud de cliente y responder con ubicacion de camion y estado de pedido
+}

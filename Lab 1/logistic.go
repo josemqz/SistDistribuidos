@@ -84,12 +84,12 @@ func main(){
 	var colaP []paquete
 	var colaN []paquete
 
-
+/*
 	//registro de pedidos
 	reg := crearRegistro("registro_logistica.csv")
     regWriter := csv.NewWriter(reg)
     defer regWriter.Flush()
-    
+*/  
     //escribir cabeceras
 	//timestamp, id del paquete, tipo de paquete, nombre de producto*, 
 	//valor de producto*, origen (tienda?), destino*, número de seguimiento
@@ -107,13 +107,12 @@ func main(){
 	//for{
 
 		/*gRPC clientes
-		if mensaje:
+		if llega mensaje:
 
-			if pyme (tienda == "pyme"):
+			if (tienda == "pyme"):
 				generar codigo de seguimiento
 
 			timestamp :=
-
 
 			escribir en registro (timestamp, id del paquete, tipo de paquete, nombre de producto*, 
 									valor de producto*, origen (tienda?), destino*, número de seguimiento)
@@ -121,7 +120,7 @@ func main(){
 		retail
 			id	producto	valor	tienda	destino
 		pyme
-			id	producto	valor	tienda	destino	prioritario
+			id	producto	valor	tienda	destino prioritario
 
 
 	        err := writer.Write(registro)

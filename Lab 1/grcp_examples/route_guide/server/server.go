@@ -1,6 +1,7 @@
 /*
  *
  * Copyright 2015 gRPC authors.
+
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,7 +99,7 @@ func (s *routeGuideServer) RecordRoute(stream pb.RouteGuide_RecordRouteServer) e
 		if err == io.EOF {
 			endTime := time.Now()
 			return stream.SendAndClose(&pb.RouteSummary{
-				ElapsedTime:  int32(endTime.Sub(startTime).Seconds()),
+				ElapsedTime: int32(endTime.Sub(startTime).Seconds()),
 			})
 		}
 		if err != nil {
@@ -115,7 +116,6 @@ func (s *routeGuideServer) RecordRoute(stream pb.RouteGuide_RecordRouteServer) e
 		lastPoint = point*/
 	}
 }
-
 
 // RouteChat receives a stream of message/location pairs, and responds with a stream of all
 // previous messages at each of those locations.
@@ -152,19 +152,18 @@ func (s *routeGuideServer) loadFeatures(filePath string) {
 	var data []byte
 	if filePath != "" {
 		var err error
-        //leer csv
+		//leer csv
 		data, err = ioutil.ReadFile(filePath)
 		if err != nil {
 			log.Fatalf("Failed to load default features: %v", err)
 		}
-        //csv a json
+		//csv a json
 	}
-    //??
+	//??
 	if err := json.Unmarshal(data, &s.savedFeatures); err != nil {
 		log.Fatalf("Failed to load default features: %v", err)
 	}
 }
-
 
 func toRadians(num float64) float64 {
 	return num * math.Pi / float64(180)
@@ -210,7 +209,6 @@ func serialize(point *pb.Point) string {
 	return fmt.Sprintf("%d %d", point.Latitude, point.Longitude)
 }
 
-
 func newServer() *routeGuideServer {
 	s := &routeGuideServer{routeNotes: make(map[string][]*pb.RouteNote)}
 	s.loadFeatures(*jsonDBFile)
@@ -224,21 +222,21 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	var opts []grpc.ServerOption
-/*
-	if *tls {
-		if *certFile == "" {
-			*certFile = testdata.Path("server1.pem")
+	/*
+		if *tls {
+			if *certFile == "" {
+				*certFile = testdata.Path("server1.pem")
+			}
+			if *keyFile == "" {
+				*keyFile = testdata.Path("server1.key")
+			}
+			creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
+			if err != nil {
+				log.Fatalf("Failed to generate credentials %v", err)
+			}
+			opts = []grpc.ServerOption{grpc.Creds(creds)}
 		}
-		if *keyFile == "" {
-			*keyFile = testdata.Path("server1.key")
-		}
-		creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
-		if err != nil {
-			log.Fatalf("Failed to generate credentials %v", err)
-		}
-		opts = []grpc.ServerOption{grpc.Creds(creds)}
-	}
-*/
+	*/
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterRouteGuideServer(grpcServer, newServer())
 	grpcServer.Serve(lis)
