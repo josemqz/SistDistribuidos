@@ -42,13 +42,14 @@ func main() {
 	defer conn.Close()
 
 	client := logis.NewLogisServiceClient(conn)
-	
 
-	//leer csv
+	//pedir tiempo de espera por pedido por input
 
+	//leer CSVs
 	records_pyme := leercsv("pymes.csv")
 	records_retail := leercsv("retail.csv")
 
+	//enviar pedidos pyme
 	for _, rec := range records_pyme {
 
 		request := &logis.Pedido{
@@ -61,14 +62,18 @@ func main() {
 		}
 
 		//wait
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+	
+		response, err := client.PedidoCliente(ctx, request)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	
+		log.Println("Respuesta:", response.GetRecibo())
 	}
 
-
-
-	//if tienda == "pyme"{} //habiendo leido el archivo csv
-
-
-	//else
+	/*
 	request := &logis.Pedido{
 		id := ,
 		producto := ,
@@ -76,14 +81,6 @@ func main() {
 		tienda := ,
 		destino := ,
 	}
+	*/
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	response, err := client.PedidoCliente(ctx, request)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	log.Println("Respuesta:", response.GetRecibo())
 }

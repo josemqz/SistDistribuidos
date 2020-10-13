@@ -12,7 +12,7 @@ message Pedido{
 }
 
 message Recibo{
-    String msg = 1;
+    int seguimiento = 1;
 }
 
 service LogisService{

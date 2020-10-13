@@ -50,6 +50,7 @@ func dequeue(cola []paquete) paquete{
 }
 */
 
+/*
 func crearRegistro(nombre string) *os.File{ //quizás haya que poner (arch *os.File)
 	
 	//ya existe el registro
@@ -77,6 +78,7 @@ func crearRegistro(nombre string) *os.File{ //quizás haya que poner (arch *os.F
 
     return arch
 }
+*/
 
 func main(){
 
@@ -96,10 +98,11 @@ func main(){
 
 
     //registro de seguimiento
-    seg := crearRegistro("registro_seguimiento.csv")
+/*
+	seg := crearRegistro("registro_seguimiento.csv")
     segWriter := csv.NewWriter(reg)
     defer segWriter.Flush()
-
+*/
     //escribir cabeceras
     //id del paquete, estado del paquete, id del camión, id de seguimiento, cantidad de intentos
 
