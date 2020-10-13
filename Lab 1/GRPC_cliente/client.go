@@ -9,6 +9,28 @@ import (
 	"google.golang.org/grpc"
 )
 
+func leercsv(arch String) ([]byte){
+	
+	csv_arch, err := os.Open(arch)
+	
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer csv_arch.Close()
+	
+	r := csv.NewReader(csv_arch)
+	records, err := r.ReadAll()
+	
+	csv_arch.Close()
+	
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	
+	return records
+}
+
 func main() {
 
 	log.Println("Client running ...")
@@ -24,16 +46,27 @@ func main() {
 
 	//leer csv
 
+	records_pyme := leercsv("pymes.csv")
+	records_retail := leercsv("retail.csv")
+
+	for _, rec := range records_pyme {
+
+		request := &logis.Pedido{
+			id := rec[0],
+			producto := rec[1],
+			valor := rec[2],
+			tienda := rec[3],
+			destino := rec[4],
+			prioritario := rec[5],
+		}
+
+		//wait
+	}
+
+
 
 	//if tienda == "pyme"{} //habiendo leido el archivo csv
-	request := &logis.Pedido{
-		id := ,
-		producto := ,
-		valor := ,
-		tienda := ,
-		destino := ,
-		prioritario := ,
-	}
+
 
 	//else
 	request := &logis.Pedido{
