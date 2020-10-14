@@ -2,19 +2,64 @@
 package main
 
 import (
-	
-	"fmt"
-	"os"
-	//"time"
+	"context"
 	"log"
-	
-	"encoding/csv"
+	"time"
 
+	"github.com/josemqz/SistDistribuidos"
+	"github.com/josemqz/SistDistribuidos/Lab\ 1/GRPC_proto"
+	"google.golang.org/grpc"
+
+	
+	//"os"
+	//"encoding/csv"
 	//"bufio"
-	"io"
+	//"io"
+
+
 )
 
+/*
+type Package struct{
+	id string
+	num_seguimiento int
+	tipo string
+	valor int
+	num_intentos int
+	estado string
+	// estados-> bdg: bodega, tr: en tránsito , rec: recibido , r: no recibido
+}
+
+id-paquete, tipo de paquete, valor, origen, destino, número de intentos
+y fecha de entrega
+*/
+
 func main(){
+
+
+	//pedir tiempo de espera entre pedidos por input
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Ingresar tiempo de espera para pedidos: ")
+	usr_time, _ := reader.ReadString('\n')
+	
+
+	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer conn.Close()
+
+	camion := logis.NewLogisServiceClient(conn)
+
+	
+	func (s *server)GenerarRegistroCam(ctx context.Context, //cs CodSeguimiento) return (*logis.EstadoPedido, error) {
+
+//		for _, regseg := range PaquetesRetail{
+//			RegCamion := append(RegCamion, regseg // + origen + destino + fecha entrega - seguimiento - estado)
+
+//		}	
+//	}
+	
 
 
 	//reintento: 10 dp

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package logis;
+
+option go_package="github.com/SistDistribuidos/Lab 1/GRPC_proto;GRPC_proto";
+
+message Pedido{
+    string id = 1;
+    string producto = 2;
+    int32 valor = 3;
+    string tienda = 4;
+    string destino = 5;
+    int32 prioritario = 6;
+}
+
+message CodSeguimiento{
+    int32 codigo = 1;
+}
+
+message EstadoPedido{
+    string estado = 1;
+}
+
+service LogisService{
+    rpc PedidoCliente(Pedido) returns (CodSeguimiento) {}
+
+    rpc SeguimientoCliente(CodSeguimiento) returns (EstadoPedido) {}
+}
