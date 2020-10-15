@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/josemqz/SistDistribuidos/Lab\ 1/GRPC_proto"
+	"../GRPC_proto"
 	"google.golang.org/grpc"
 )
 
