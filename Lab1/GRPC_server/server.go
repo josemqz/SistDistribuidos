@@ -1,12 +1,13 @@
-package main
+package server
 
 import (
 	"context"
 	"log"
 	"net"
 	"time"
+	"errors"
 
-	"../GRPC_proto"
+	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
 )
 
@@ -19,18 +20,18 @@ type RegPedido struct{
 	id string
 	tipo string
 	nombre string
-	valor int
+	valor int32
 	origen string
 	destino string
-	num_seguimiento int
+	num_seguimiento int32
 }
 
 type Package struct{
 	id string
-	num_seguimiento int
+	num_seguimiento int32
 	tipo string
-	valor int
-	num_intentos int
+	valor int32
+	num_intentos int32
 	estado string
 	// estados-> bdg: bodega, tr: en tránsito , rec: recibido , r: no recibido
 }
@@ -38,13 +39,13 @@ type Package struct{
 type PackageSeguimiento struct{
 	id_pkg string
 	estado_pkg string
-	id_camion int
-	num_seguimiento int
-	num_intentos int
+	id_camion int32
+	num_seguimiento int32
+	num_intentos int32
 }
 
 //codigo de seguimiento para cada pedido
-cod_tracking := 0
+var cod_tracking int32 = 0 //constante
 
 //colas de pedidos
 var PaquetesRetail []Package
@@ -102,7 +103,7 @@ func main() {
 
 }
 
-func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logis.Recibo, error) {
+func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logis.CodSeguimiento, error) {
 	
 	log.Println("Pedido recibido")
 
@@ -110,61 +111,64 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	
 	//auxiliar para guardar valor de cod_tracking
 	help_cod_tracking := cod_tracking
+	var tipoP string = "1"
 
 	//se escoge tipo de paquete
-	if (pedido.tienda == "pyme"){
-		if (pedido.prioritario == 0){
+	if (pedido.Tienda == "pyme"){
+		if (pedido.Prioritario == 0){
 			tipoP := "normal" 
-		} else if (pedido.prioritario == 1){
+		} else if (pedido.Prioritario == 1){
 			tipoP := "prioritario"
 		}
 	} else {
 		tipoP := "retail"
-		cod_tracking := 0
+		cod_tracking = 0
 	}
 
+	nownow := time.Now()
+	log.Println(nownow)
 
-	reg := RegPedido{timestamp:time.now(), id:pedido.id, tipo: tipoP, 
-					nombre: pedido.producto, valor: pedido.valor, origen: pedido.tienda, 
-					destino: pedido.destino, num_seguimiento: cod_tracking}
+	reg := RegPedido{timestamp:nownow, id:pedido.Id, tipo: tipoP, 
+					nombre: pedido.Producto, valor: pedido.Valor, origen: pedido.Tienda, 
+					destino: pedido.Destino, num_seguimiento: cod_tracking}
 
 	Registros := append(Registros, reg)
 
 
-	cod_tracking := help_cod_tracking
+	cod_tracking = help_cod_tracking
 
 	if (tipoP != "retail"){
 		cod_tracking += 1
 	}
 
 	//guardar paquete en cola 
-	if (tipoP = "normal") {
+	/*
+	if (tipoP == "normal") {
 		PaquetesNormal := append(PaquetesNormal, reg)
 	} else if (tipoP == "prioritario") {
 		PaquetesPri := append(PaquetesPri, reg)
 	} else {
 		PaquetesRetail := append(PaquetesRetail, reg)
 	}
-
-	return &logis.Recibo{seguimiento: cod_tracking}, nil
+*/
+	return &logis.CodSeguimiento{Codigo: cod_tracking}, nil
 }
 
-func (s *server)SeguimientoCliente(ctx context.Context, cs CodSeguimiento) return (*logis.EstadoPedido, error) {
+func (s *server) SeguimientoCliente(ctx context.Context, cs *logis.CodSeguimiento) (*logis.EstadoPedido, error) {
 
 	for _, regseg := range RegistroSeguimiento{
 		if (cs.GetCodigo() == regseg.num_seguimiento){
-			return &logis.EstadoPedido{estado: regseg.estado_pkg}, nil
-		} else {
-			return _, errors.New("No se encontró el paquete pedido en registro.")
+			return &logis.EstadoPedido{Estado: regseg.estado_pkg}, nil			
 		}
-	}	
+	}
+	return &logis.EstadoPedido{Estado: "nulo"}, errors.New("No se encontró el paquete pedido en registro.")
 }
 
 
 func (s *server) PedidoACamion(){
 	
 	//cola a camionid-paquete, tipo de paquete, valor, origen, destino, número de intentos
-y fecha de entrega
+	//y fecha de entrega
 
 }
 

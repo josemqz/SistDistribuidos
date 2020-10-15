@@ -6,8 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/josemqz/SistDistribuidos"
-	"github.com/josemqz/SistDistribuidos/Lab\ 1/GRPC_proto"
+	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
 
 	
@@ -47,7 +46,7 @@ func main(){
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer conn.Close()
+	//defer conn.Close()
 
 	camion := logis.NewLogisServiceClient(conn)
 

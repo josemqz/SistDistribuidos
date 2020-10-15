@@ -1,4 +1,4 @@
-package main
+package cliente
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/josemqz/SistDistribuidos"
-	"github.com/josemqz/SistDistribuidos/Lab\ 1/GRPC_proto"
+	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
 )
 
@@ -99,7 +99,7 @@ func doSeguimiento(client_var service /*o logisService*/, cod int) {
 }
 
 /*
-export GOROOT=/usr/local/go
+export GOROOT=/media/joseesmuyoriginal/opt/go
 export GOPATH=$HOME/go
 export GOBIN=$GOPATH/bin
 export PATH=$PATH:$GOROOT:$GOPATH:$GOBIN

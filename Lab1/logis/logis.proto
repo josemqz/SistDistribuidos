@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package logis;
 
-option go_package="github.com/SistDistribuidos/Lab 1/GRPC_proto;GRPC_proto";
+option go_package="github.com/josemqz/SistDistribuidos/Lab1/logis;logis";
 
 message Pedido{
     string id = 1;
