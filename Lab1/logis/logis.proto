@@ -4,6 +4,7 @@ package logis;
 
 option go_package="github.com/josemqz/SistDistribuidos/Lab1/logis;logis";
 
+
 message Pedido{
     string id = 1;
     string producto = 2;
@@ -25,4 +26,12 @@ service LogisService{
     rpc PedidoCliente(Pedido) returns (CodSeguimiento) {}
 
     rpc SeguimientoCliente(CodSeguimiento) returns (EstadoPedido) {}
+
+    //del ejemplo
+    //rpc SayHello (HelloRequest) returns (HelloReply) {}
+    //adicionales
+    
+
 }
+
+

@@ -15,6 +15,11 @@ type server struct {
 	logis.UnimplementedLogisServiceServer
 }
 
+/*
+go build -race -ldflags "-s -w" -o bin/server server/main.go
+bin/server
+*/
+
 type RegPedido struct{
 	timestamp time.Time
 	id string
@@ -56,7 +61,9 @@ var PaquetesNormal []Package
 var Registros []RegPedido
 var RegistroSeguimiento []PackageSeguimiento
 
+
 func main() {
+
 	log.Println("Server running ...")
 
 	lis, err := net.Listen("tcp", ":50051")
@@ -111,17 +118,17 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	
 	//auxiliar para guardar valor de cod_tracking
 	help_cod_tracking := cod_tracking
-	var tipoP string = "1"
+	var tipoP string
 
 	//se escoge tipo de paquete
 	if (pedido.Tienda == "pyme"){
 		if (pedido.Prioritario == 0){
-			tipoP := "normal" 
+			tipoP = "normal" 
 		} else if (pedido.Prioritario == 1){
-			tipoP := "prioritario"
+			tipoP = "prioritario"
 		}
 	} else {
-		tipoP := "retail"
+		tipoP = "retail"
 		cod_tracking = 0
 	}
 
@@ -132,7 +139,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 					nombre: pedido.Producto, valor: pedido.Valor, origen: pedido.Tienda, 
 					destino: pedido.Destino, num_seguimiento: cod_tracking}
 
-	Registros := append(Registros, reg)
+	Registros = append(Registros, reg)
 
 
 	cod_tracking = help_cod_tracking

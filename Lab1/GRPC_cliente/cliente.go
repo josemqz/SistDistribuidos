@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/josemqz/SistDistribuidos"
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
 )
