@@ -67,6 +67,10 @@ message paqRecibido{
     string estado = 5;
 }
 
+message mIntento{
+    int intento = 1;
+}
+
 
 service LogisService{
     //servicios logistica a cliente
@@ -78,7 +82,6 @@ service LogisService{
    // rpc ResEntrega(paqRecibido) returns (orden_rec){}
    // rpc UpdateEstado(EstadoPedido) returns (orden_rec){}
     
-
 }
 
 

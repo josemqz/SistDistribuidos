@@ -81,17 +81,6 @@ func main() {
 	log.Fatalln(srv.Serve(listenCliente))
 	log.Fatalln(srv.Serve(listenCamion))
 	
-
-
-	//funcion para chequear colas para enviar paquetes a los camiones correspondientes
-	//debería estar esperando que existan camiones en Central para asignar paquetes
-
-	//revisar tipo de paquetes en colas
-	//ver camiones disponibles en el momento
-	
-	PedidoACamion(logis.Package{}, *logis.Geo{}) //ingresar datos de paquete sacado de cola
-
-
 	//colas rabbitmq con financiero
 
 }
@@ -101,8 +90,6 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	
 	log.Println("Pedido recibido")
 
-	//guardar en registro
-	
 	//auxiliar para guardar valor de cod_tracking
 	help_cod_tracking := cod_tracking
 	var tipoP string
@@ -124,6 +111,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	var pId = pedido.Id
 	var pVal = pedido.Valor
 
+	//guardar en registro
 	Registros = append(Registros, RegPedido{timestamp:nownow, 
 											id:pId, 
 											tipo: tipoP, 
@@ -174,23 +162,28 @@ func (s *server) SeguimientoCliente(ctx context.Context, cs *logis.CodSeguimient
 
 
 //camión solicita un paquete
-func (s *server) PedidoACamion(tC *logis.tipoCam)(pkg *logis.Package, geo *logis.Geo){
+func (s *server) PedidoACamion(tC *logis.tipoCam, mIntento *logis.mIntento)(*logis.Package, *logis.Geo){
 
 	tipoCam := tC.GetTipo()
-	
+	intento := mIntento.GetIntento()
+	var flagIntento = false
+
 	//server revisa en orden de prioridad las colas para saber qué paquete enviar
 	if tipoCam == "normal"{
 
 		if len(PaquetesPri > 0){
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
+			flagIntento = true
 
 		} else if PaquetesNormal > 0{
 			pkg := PaquetesNormal[0]
 			PaquetesPri = PaquetesNormal[1:]
+			flagIntento = true
 
-		} else {
-			//esperar hasta que llegue algo
+		} else if intento{
+			//esperar hasta que llegue algo a prioritario y normal
+			flagIntento = true
 		}
 	
 	//retail
@@ -199,16 +192,24 @@ func (s *server) PedidoACamion(tC *logis.tipoCam)(pkg *logis.Package, geo *logis
 		if len(PaquetesRetail > 0){
 			pkg := PaquetesRetail[0]
 			PaquetesPri = PaquetesRetail[1:]
+			flagIntento = true
 
 		} else if len(PaquetesPri > 0){
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
+			flagIntento = true
 
-		} else {
-			//esperar hasta que llegue algo
+		} else if intento{
+			//esperar hasta que llegue algo a retail y prioritario
+			flagIntento = true
 		}
 	}
-
+	
+	//no hay paquetes luego de espera de camión
+	if !intento && !flagIntento{
+		return nil, nil
+	}
+	
 	mensajePkg := &logis.Package{id: pkg.id;
 								num_seguimiento: pkg.num_seguimiento;
 								tipo: pkg.tipo;
@@ -217,6 +218,7 @@ func (s *server) PedidoACamion(tC *logis.tipoCam)(pkg *logis.Package, geo *logis
 								estado: pkg.estado;
 	}
 	
+	//obtener origen y destino del registro
 	for i := range PackageSeguimiento{
 		if PackageSeguimiento[i].id_pkg == pkg.id{
 			orig := PackageSeguimiento[i].origen
@@ -224,6 +226,7 @@ func (s *server) PedidoACamion(tC *logis.tipoCam)(pkg *logis.Package, geo *logis
 			break
 		}
 	}
+	
 	if orig == nil || len(orig) == 0{
 		log.Println("No se encontró paquete de cola en registro de pedidos")
 		return (&logis.Package{}, &logis.Geo{})

@@ -3,7 +3,6 @@ package main
 
 import (
 
-	
 	"context"
 	"log"
 	"time"
@@ -11,14 +10,15 @@ import (
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
 
-
 	"math"
 	"math/rand"
+	"strconv"
+	"bufio"
 
 )
 
 
-
+var tpo1 int //tiempo de espera por segundo paquete - input usuario en main
 var tpoEnvio int //tpo de demora de cada envio - input usuario en main
 
 type paquete struct {
@@ -38,7 +38,7 @@ var retail1 []paquete
 var retail2 []paquete
 var normal []paquete
 
-func obtenerPaquete(coss logis.LogisService, tipoCam string, idCam string) (bool, paquete) {
+func obtenerPaquete(coss logis.LogisServiceClient, tipoCam string, idCam string) (bool, paquete) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	r, err := coss.SolPaquetes(ctx, &logis.TipoCam{Tipo: tipoCam})
@@ -105,17 +105,133 @@ func actualizaP(id string, estado string, fecha string, intento int32) {
 	}
 }
 
+
 func enviarEstado(pak paquete){
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	
+	r, _ := logg.UpdateEstado(ctx, &logis.EstadoPedido{Id: pak.id, Estado: pak.estado})
+	log.Printf("mensaje: %v", r.GetMessage())
 
 }
 
 
 
+func ePyme(pak paquete) {
+	
+	// definir maximo de intentos 
+	max := math.Floor((pak.valor) / 10)	
+	
+	pak.estado = "tr" //en transito
+	enviarEstado(pak)
+	var intentos = siRecibe(int(max))
+	t := time.Now()
+	pak.fechaEntrega = t.Format("2006-01-02 15:04:05")
+	pak.intentos = int32(intentos)
+	
+	if intentos == int(max) {
+		
+		//ya se intento el maximo de veces y no fue recibido
+
+		pak.estado = "nr" //no recibido
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		r, _ := logg.ResEntrega(ctx, &logis.PaqRecibido{Id: pak.id, Intentos: pak.intentos, Estado: pak.estado, Tipo: pak.tipo})
+		log.Printf("Mje: %v", r.GetMessage())
+
+	} else {
+		
+		// exito
+		
+		pak.estado = "rec" //recibido
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		r, _ := logg.ResEntrega(ctx, &logis.PaqRecibido{Id: pak.id, Intentos: pak.intentos, Estado: pak.estado, Tipo: pak.tipo})
+		log.Printf("Mje: %v", r.GetMessage())
+	}
+	actualizaP(pak.id, pak.estado, pak.fechaEntrega, pak.intentos)
+}
+	
+	
+func eRetail(pak paquete) {
+	
+	max := 3
+
+	pak.estado = "tr" //en transito
+	enviarEstado(pak)
+
+	var intentos = siRecibe(max)
+	t := time.Now()
+	pak.fechaEntrega = t.Format("2006-01-02 15:04:05")
+	pak.intentos = int32(intentos)
+	
+	if intentos == 3 {
+		
+		//ya se intento el maximo de veces y no fue recibido
+
+		pak.estado = "nr" //no recibido
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		r, _ := logg.ResEntrega(ctx, &logis.PaqRecibido{Id: pak.id, Intentos: pak.intentos, Estado: pak.estado, Tipo: pak.tipo})
+		log.Printf("Mje: %v", r.GetMessage())
+
+	} else {
+		
+		// exito
+		
+		pak.estado = "rec" //recibido
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		r, _ := logg.ResEntrega(ctx, &logis.PaqRecibido{Id: pak.id, Intentos: pak.intentos, Estado: pak.estado, Tipo: pak.tipo})
+		log.Printf("Mje: %v", r.GetMessage())
+	}
+	actualizaP(pak.id, pak.estado, pak.fechaEntrega, pak.intentos)
+}
 
 
+//var logg logis.LogisServiceClient - maybe
+
+func tipoDespacho(pak paquete){
+	if pak.origen == "pyme" {
+		ePyme(pak)
+	}else {
+		eRetail(pak)
+	}
+
+}
+
+func entrega(pak1 paquete, pak2 paquete){
+
+	if pak2.id != "null" {
+		if (pak1.valor >= pak2.valor) {
+			tipoDespacho(pak1)
+			tipoDespacho(pak2)
+		}else {
+			tipoDespacho(pak2)
+			tipoDespacho(pak1)
+		}
+	}else{
+		tipoDespacho(pak1)
+	}
+}
+
+
+func delivery(lc logis.LogisServiceClient, tipoCam string, idCam string, /*WaitGroup??*/) bool {
+
+	var rs1, primero = obtenerPaquete(lc, tipoCam, idCam)
+	
+	if rs1 == true {
+		var rs2, segundo = obtenerPaquete(lc, tipoCam, idCam)
+
+		// si no hay aun segundo paquete
+		if !rs2 {
+
+		// intentar de nuevo?
+
+		}
+	}	
+
+
+}
 
 
 
@@ -123,48 +239,29 @@ func enviarEstado(pak paquete){
 
 func main(){
 
-	//pedir tiempo de espera entre pedidos por input
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Ingresar tiempo de espera para pedidos: ")
-	usr_time, _ := reader.ReadString('\n')
-	
-
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("\ndid not connect with server: %v", err)
 	}
 	defer conn.Close()
+	c := logis.NewLogisServiceClient(conn)
 
-	camion := logis.NewLogisServiceClient(conn)
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Ingrese tiempo espera segundo pedido\n")
+	texto, _ := reader.ReadString('\n')
+	tpo1, _ = strconv.Atoi(strings.TrimSuffix(texto, "\n"))
+	fmt.Print("Ingrese tiempo de envio de un pedido\n")
+	reader = bufio.NewReader(os.Stdin)
+	texto, _ = reader.ReadString('\n')
+	tpoEnvio, _ = strconv.Atoi(strings.TrimSuffix(texto, "\n"))
+
+	
+
+
+
+
 
 	//tiene que escuchar a logis hasta que le llegue un request
-
-}
-	
-func GenerarRegistroCam(ctx context.Context, cs CodSeguimiento) {
-
-//		for _, regseg := range PaquetesRetail{
-//			RegCamion := append(RegCamion, regseg // + origen + destino + fecha entrega - seguimiento - estado)
-
-//		}	
-//	}
-	
-func Delivery(ctx context.Context, )
-
-	//reintento: 10 dp
-		//pyme: si <= precio producto + [30% en caso de prioritario] || n_intento > 2
-		//retail: n_intento <= 3
-
-	//si paquetes no son entregados:
-		//normal: nada
-		//prioritario: 30%
-		//retail: precio producto
-
-
-	/*
-
-
-	*/
 
 	
 }

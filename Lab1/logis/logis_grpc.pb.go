@@ -17,6 +17,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type LogisServiceClient interface {
+	//servicios logistica a cliente
 	PedidoCliente(ctx context.Context, in *Pedido, opts ...grpc.CallOption) (*CodSeguimiento, error)
 	SeguimientoCliente(ctx context.Context, in *CodSeguimiento, opts ...grpc.CallOption) (*EstadoPedido, error)
 }
@@ -51,6 +52,7 @@ func (c *logisServiceClient) SeguimientoCliente(ctx context.Context, in *CodSegu
 // All implementations must embed UnimplementedLogisServiceServer
 // for forward compatibility
 type LogisServiceServer interface {
+	//servicios logistica a cliente
 	PedidoCliente(context.Context, *Pedido) (*CodSeguimiento, error)
 	SeguimientoCliente(context.Context, *CodSeguimiento) (*EstadoPedido, error)
 	mustEmbedUnimplementedLogisServiceServer()

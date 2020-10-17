@@ -126,10 +126,8 @@ func enviarPedidos(records [][]string, client_var logis.LogisServiceClient, usr_
 		cod_seguimiento := response.GetCodigo()
 		log.Println("Pedido realizado\nCodigo de seguimiento: ", cod_seguimiento, "\n")
 		
-		//cómo se debería entregar el codigo de seguimiento al cliente?
-
 		//wait
-		time.Sleep(usr_time * time.Second)
+		time.Sleep(time.Duration(usr_time) * time.Second)
 	}
 }
 
@@ -142,5 +140,5 @@ func doSeguimiento(ctx context.Context, client_var logis.LogisServiceClient, cod
 		log.Fatalln(err)
 	}
 	
-	log.Println(estado_pkg.GetEstado())
+	log.Println("Estado de pedido: " + estado_pkg.GetEstado())
 }
