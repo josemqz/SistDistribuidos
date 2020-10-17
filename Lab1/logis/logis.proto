@@ -14,6 +14,30 @@ message Pedido{
     int32 prioritario = 6;
 }
 
+message Package{
+    string id = 1;
+	int32 num_seguimiento = 2;
+	string tipo = 3;
+	int32 valor = 4;
+	int32 num_intentos = 5;
+	string estado = 6;
+}
+
+message Geo{
+    string origen = 1;
+    string destino = 2;
+}
+
+message regCamion{
+    string id_pkg = 1;
+	string tipo = 2;
+	int32 valor = 3;
+	string origen = 4;
+	string destino = 5;
+	int32 num_intentos = 6;
+	string fecha_entrega = 7;
+}
+
 message CodSeguimiento{
     int32 codigo = 1;
 }
@@ -22,14 +46,37 @@ message EstadoPedido{
     string estado = 1;
 }
 
-service LogisService{
-    rpc PedidoCliente(Pedido) returns (CodSeguimiento) {}
+message paquete{
+    string id = 1;
+    string tipo = 2;
+    int32 valor = 3;
+    string origen = 4;
+    string destino = 5;
+    string intentos = 6;
+}
 
+message tipoCam{
+    string tipo = 1;
+}
+
+message paqRecibido{
+    string id = 1;
+    string tipo = 2;
+    int32 valor = 3;
+    int32 intentos = 4;
+    string estado = 5;
+}
+
+
+service LogisService{
+    //servicios logistica a cliente
+    rpc PedidoCliente(Pedido) returns (CodSeguimiento) {}
     rpc SeguimientoCliente(CodSeguimiento) returns (EstadoPedido) {}
 
-    //del ejemplo
-    //rpc SayHello (HelloRequest) returns (HelloReply) {}
-    //adicionales
+    //servicios logistica a camion
+   // rpc SolPaquetes(tipoCam) returns (paquete){}
+   // rpc ResEntrega(paqRecibido) returns (orden_rec){}
+   // rpc UpdateEstado(EstadoPedido) returns (orden_rec){}
     
 
 }

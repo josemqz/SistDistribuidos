@@ -15,11 +15,6 @@ type server struct {
 	logis.UnimplementedLogisServiceServer
 }
 
-/*
-go build -race -ldflags "-s -w" -o bin/server server/main.go
-bin/server
-*/
-
 type RegPedido struct{
 	timestamp time.Time
 	id string
@@ -38,7 +33,7 @@ type Package struct{
 	valor int32
 	num_intentos int32
 	estado string
-	// estados-> bdg: bodega, tr: en tránsito , rec: recibido , r: no recibido
+	// estados-> bdg: bodega, tr: en tránsito , rec: recibido , nr: no recibido
 }
 
 type PackageSeguimiento struct{
@@ -50,7 +45,7 @@ type PackageSeguimiento struct{
 }
 
 //codigo de seguimiento para cada pedido
-var cod_tracking int32 = 0 //constante
+var cod_tracking int32 = 0
 
 //colas de pedidos
 var PaquetesRetail []Package
@@ -66,49 +61,41 @@ func main() {
 
 	log.Println("Server running ...")
 
-	lis, err := net.Listen("tcp", ":50051")
+
+//conexión clientes
+	listenCliente, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+//conexión camiones
+	listenCamion, err := net.Listen("tcp", ":50052")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+
 	srv := grpc.NewServer()
 	logis.RegisterLogisServiceServer(srv, &server{})
 
-	log.Fatalln(srv.Serve(lis))
+	log.Fatalln(srv.Serve(listenCliente))
+	log.Fatalln(srv.Serve(listenCamion))
+	
 
 
+	//funcion para chequear colas para enviar paquetes a los camiones correspondientes
+	//debería estar esperando que existan camiones en Central para asignar paquetes
 
-/*gRPC clientes
-		if llega mensaje:
+	//revisar tipo de paquetes en colas
+	//ver camiones disponibles en el momento
+	
+	PedidoACamion(logis.Package{}, *logis.Geo{}) //ingresar datos de paquete sacado de cola
 
-		retail
-			id	producto	valor	tienda	destino
-		pyme
-			id	producto	valor	tienda	destino prioritario
-			
-			enviar codigo de seguimiento a cliente
-
-			//hay que usar un indice para saber en qué producto va (para no repetirlos)
-
-			generar EDD de paquete para enviar a camión 
-
-		*/
-		
-		/*gRPC camiones
-
-		enviar id de seguimiento
-		recibir estado (En bodega, En camino, Recibido o No Recibido)
-		actualizar registro de seguimiento (seg)
-		enviar a cliente que pidió seguimiento
-
-		si un camión vuelve, hay que entregar datos de ganancias/pérdidas a financiero
-
-		*/
-	//}
 
 	//colas rabbitmq con financiero
 
 }
+
 
 func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logis.CodSeguimiento, error) {
 	
@@ -134,33 +121,47 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 
 	nownow := time.Now()
 	log.Println(nownow)
+	var pId = pedido.Id
+	var pVal = pedido.Valor
 
-	reg := RegPedido{timestamp:nownow, id:pedido.Id, tipo: tipoP, 
-					nombre: pedido.Producto, valor: pedido.Valor, origen: pedido.Tienda, 
-					destino: pedido.Destino, num_seguimiento: cod_tracking}
+	Registros = append(Registros, RegPedido{timestamp:nownow, 
+											id:pId, 
+											tipo: tipoP, 
+											nombre: pedido.Producto, 
+											valor: pVal, 
+											origen: pedido.Tienda, 
+											destino: pedido.Destino, 
+											num_seguimiento: cod_tracking})
 
-	Registros = append(Registros, reg)
+	//transformar pedido en paquete
+	pkg := Package{id: pId
+					num_seguimiento: cod_tracking
+					tipo: tipoP
+					valor: pVal
+					num_intentos: 0
+					estado: "bdg"}
 
+	//guardar paquete en cola
+	if (tipoP == "normal") {
+		PaquetesNormal := append(PaquetesNormal, pkg)
+	} else if (tipoP == "prioritario") {
+		PaquetesPri := append(PaquetesPri, pkg)
+	} else {
+		PaquetesRetail := append(PaquetesRetail, pkg)
+	}
 
+	//se vuelve al valor original del codigo de seguimiento
 	cod_tracking = help_cod_tracking
 
 	if (tipoP != "retail"){
 		cod_tracking += 1
 	}
 
-	//guardar paquete en cola 
-	/*
-	if (tipoP == "normal") {
-		PaquetesNormal := append(PaquetesNormal, reg)
-	} else if (tipoP == "prioritario") {
-		PaquetesPri := append(PaquetesPri, reg)
-	} else {
-		PaquetesRetail := append(PaquetesRetail, reg)
-	}
-*/
 	return &logis.CodSeguimiento{Codigo: cod_tracking}, nil
 }
 
+
+//Cliente solicita estado de paquete
 func (s *server) SeguimientoCliente(ctx context.Context, cs *logis.CodSeguimiento) (*logis.EstadoPedido, error) {
 
 	for _, regseg := range RegistroSeguimiento{
@@ -172,24 +173,79 @@ func (s *server) SeguimientoCliente(ctx context.Context, cs *logis.CodSeguimient
 }
 
 
-func (s *server) PedidoACamion(){
-	
-	//cola a camionid-paquete, tipo de paquete, valor, origen, destino, número de intentos
-	//y fecha de entrega
+//camión solicita un paquete
+func (s *server) PedidoACamion(tC *logis.tipoCam)(pkg *logis.Package, geo *logis.Geo){
 
+	tipoCam := tC.GetTipo()
+	
+	//server revisa en orden de prioridad las colas para saber qué paquete enviar
+	if tipoCam == "normal"{
+
+		if len(PaquetesPri > 0){
+			pkg := PaquetesPri[0]
+			PaquetesPri = PaquetesPri[1:]
+
+		} else if PaquetesNormal > 0{
+			pkg := PaquetesNormal[0]
+			PaquetesPri = PaquetesNormal[1:]
+
+		} else {
+			//esperar hasta que llegue algo
+		}
+	
+	//retail
+	} else {
+		
+		if len(PaquetesRetail > 0){
+			pkg := PaquetesRetail[0]
+			PaquetesPri = PaquetesRetail[1:]
+
+		} else if len(PaquetesPri > 0){
+			pkg := PaquetesPri[0]
+			PaquetesPri = PaquetesPri[1:]
+
+		} else {
+			//esperar hasta que llegue algo
+		}
+	}
+
+	mensajePkg := &logis.Package{id: pkg.id;
+								num_seguimiento: pkg.num_seguimiento;
+								tipo: pkg.tipo;
+								valor: pkg.valor;
+								num_intentos: pkg.num_intentos;
+								estado: pkg.estado;
+	}
+	
+	for i := range PackageSeguimiento{
+		if PackageSeguimiento[i].id_pkg == pkg.id{
+			orig := PackageSeguimiento[i].origen
+			dest := PackageSeguimiento[i].destino
+			break
+		}
+	}
+	if orig == nil || len(orig) == 0{
+		log.Println("No se encontró paquete de cola en registro de pedidos")
+		return (&logis.Package{}, &logis.Geo{})
+	}
+
+	mensajeGeo := &logis.Geo{origen: orig, destino: dest}
+	
+	return (mensajePkg, mensajeGeo)
 }
 
-/*
-compile: ## Compile the proto file.
-	protoc -I GRPC_proto/ GRPC_proto/cliente_logis.proto --go_out=plugins=grpc:GRPC_proto/
- 
-.PHONY: server
-server: ## Build and run server.
-	go build -race -ldflags "-s -w" -o bin/server server/main.go
-	bin/server
- 
-.PHONY: client
-client: ## Build and run client.
-	go build -race -ldflags "-s -w" -o bin/client client/main.go
-	bin/client
-*/
+
+//actualización de estado de paquetes al llegar camión a la Central
+func (s *server) EstadoCamion(idCamion int32, dataPkg *logis.regCamion){
+
+	//actualizar estados de paquetes en registro
+	for i := range RegistroSeguimiento{
+		if (dataPkg.Id_pkg == RegistroSeguimiento[i].Id){
+			//condiciones para obtener estado de paquete
+			//cantidad de intentos y origen (retail o pyme)
+			RegistroSeguimiento[i].estado = dataPkg.
+		}
+	}
+
+	//enviar resultados económicos a financiero
+}
