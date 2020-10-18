@@ -101,10 +101,10 @@ func contador(pak EnviosFinanzas){
 
 
 func failOnError(err error, msg string) {
-	if err != nil {
+	if (err != nil) {
 	  log.Fatalf("%s: %s", msg, err)
 	}
-  }
+}
 
 
 

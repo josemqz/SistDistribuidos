@@ -39,6 +39,9 @@ var retail2 []paquete
 var normal []paquete
 
 func obtenerPaquete(coss logis.LogisServiceClient, tipoCam string, idCam string) (bool, paquete) {
+	
+	//debe obtener datos de RegPedido de logistica o en su defecto que logistica guarde 3 csv y aca sean leidos
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	r, err := coss.SolPaquetes(ctx, &logis.TipoCam{Tipo: tipoCam})
@@ -201,7 +204,7 @@ func tipoDespacho(pak paquete){
 
 func entrega(pak1 paquete, pak2 paquete){
 
-	if pak2 != nil {
+	if (pak2.id != "") {
 		if (pak1.valor >= pak2.valor) {
 			tipoDespacho(pak1)
 			tipoDespacho(pak2)
@@ -234,14 +237,6 @@ func delivery(lc logis.LogisServiceClient, tipoCam string, idCam string, /*WaitG
 	//waitgroup?	
 	return true
 }
-/*
-GRPC_server/server.go:173:3: PaquetesNormal declared but not used
-GRPC_server/server.go:175:3: PaquetesPri declared but not used
-GRPC_server/server.go:177:3: PaquetesRetail declared but not used
-GRPC_server/server.go:257:3: pkg declared but not used
-GRPC_server/server.go:257:8: flagPeticion declared but not used
-GRPC_server/server.go:262:9: flagPeticion declared but not used
-*/
 
 
 //

@@ -227,6 +227,7 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.TipoCam)(*logis.Pa
 
 	//server revisa en orden de prioridad las colas para saber qué paquete enviar
 	pkg, flagPeticion := CheckColas(tipoCam, numPeticion)
+	//meter condición de retail en caso de aceptar prioritario (haber enviado retails)
 
 	//no hay paquetes en colas luego del tiempo de espera del camión
 	if !numPeticion && !flagPeticion{
@@ -240,6 +241,8 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.TipoCam)(*logis.Pa
 		if (Registros[i].id == pkg.id){
 			orig = Registros[i].origen
 			dest = Registros[i].destino
+
+			Registros[i].estado = "tr"  //actualiza estado a "En tránsito"
 			break
 		}
 	}

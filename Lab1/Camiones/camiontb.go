@@ -153,20 +153,20 @@ func GuardarPedido(camion logis.LogisServiceClient, idCam string, numPeticion bo
 	}
 
 	//pedir a logis paquete
-	pkg, geo := camion.PedidoACamion(&logis.tipoCam{Tipo: tipoCam}, numPeticion)
+	pedido := camion.PedidoACamion(&logis.tipoCam{Tipo: tipoCam}, numPeticion)
 
 	//si segunda petición de paquete no fue exitosa se retorna nil y ya uwu
-	if (numPeticion == false && pkg == nil){
+	if (!numPeticion && pkg == nil){
 		return nil
 	}
 	
 	//guardar en registro
-	reg := RegPackage{id_pkg: pkg.Id,
-						tipo: pkg.Tipo,
-						valor: pkg.Valor,
-						origen: geo.Origen,
-						destino: geo.Destino,
-						num_intentos: pkg.Num_intentos,
+	reg := RegPackage{id_pkg: pedido.Id,
+						tipo: pedido.Tipo,
+						valor: pedido.Valor,
+						origen: pedido.Origen,
+						destino: pedido.Destino,
+						num_intentos: pedido.Num_intentos,
 	}
 
 	if idCam == "CR1" {
@@ -183,6 +183,7 @@ func GuardarPedido(camion logis.LogisServiceClient, idCam string, numPeticion bo
 
 func Delivery(reg1, reg2){
 	
+
 	//una vez listo para salir a hacer entregas, esperar un tiempo (puede ser el mismo 
 	//independientemente del destino, o variar según este)
 	
@@ -207,3 +208,142 @@ func Delivery(reg1, reg2){
 		//prioritario: 30%
 		//retail: precio producto
 
+
+
+func siRecibe(xIntentos int) int{
+
+	i := 1
+	for i < (xIntentos+1){
+		time.Sleep(time.Duration(tpoEnvio) * time.Millisecond)
+		n := rand.Intn(100)
+		if n < 80 {
+			return i
+		} i++
+	}
+}
+
+
+func actualizaP(id string, estado string, fecha string, intento int32) {
+	i := 0
+	for i < len(todos){
+		if todos[i].id == id{
+			var aux = todos[i]
+			aux.estado = estado
+			aux.intentos = intento
+			aux.fechaEntrega = fecha
+			todos[i] = aux
+			return
+		}
+		i++
+	}
+}
+
+
+func enviarEstado(pak paquete){
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r, _ := logg.UpdateEstado(ctx, &logis.EstadoPedido{Id: pak.id, Estado: pak.estado})
+	log.Printf("mensaje: %v", r.GetMessage())
+
+}
+
+
+
+func ePyme(pak paquete) {
+	
+	// definir maximo de intentos 
+	max := math.Floor((pak.valor) / 10)	
+	
+	pak.estado = "tr" //en transito
+	enviarEstado(pak)
+	var intentos = siRecibe(int(max))
+	t := time.Now()
+	pak.fechaEntrega = t.Format("2006-01-02 15:04:05")
+	pak.intentos = int32(intentos)
+	
+	if intentos == int(max) {
+		
+		//ya se intento el maximo de veces y no fue recibido
+
+		pak.estado = "nr" //no recibido
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		r, _ := logg.ResEntrega(ctx, &logis.PaqRecibido{Id: pak.id, Intentos: pak.intentos, Estado: pak.estado, Tipo: pak.tipo})
+		log.Printf("Mje: %v", r.GetMessage())
+
+	} else {
+		
+		// exito
+		
+		pak.estado = "rec" //recibido
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		r, _ := logg.ResEntrega(ctx, &logis.PaqRecibido{Id: pak.id, Intentos: pak.intentos, Estado: pak.estado, Tipo: pak.tipo})
+		log.Printf("Mje: %v", r.GetMessage())
+	}
+	actualizaP(pak.id, pak.estado, pak.fechaEntrega, pak.intentos)
+}
+	
+	
+func eRetail(pak paquete) {
+	
+	max := 3
+
+	pak.estado = "tr" //en transito
+	enviarEstado(pak)
+
+	var intentos = siRecibe(max)
+	t := time.Now()
+	pak.fechaEntrega = t.Format("2006-01-02 15:04:05")
+	pak.intentos = int32(intentos)
+	
+	if intentos == 3 {
+		
+		//ya se intento el maximo de veces y no fue recibido
+
+		pak.estado = "nr" //no recibido
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		r, _ := logg.ResEntrega(ctx, &logis.PaqRecibido{Id: pak.id, Intentos: pak.intentos, Estado: pak.estado, Tipo: pak.tipo})
+		log.Printf("Mje: %v", r.GetMessage())
+
+	} else {
+		
+		// exito
+		
+		pak.estado = "rec" //recibido
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		r, _ := logg.ResEntrega(ctx, &logis.PaqRecibido{Id: pak.id, Intentos: pak.intentos, Estado: pak.estado, Tipo: pak.tipo})
+		log.Printf("Mje: %v", r.GetMessage())
+	}
+	actualizaP(pak.id, pak.estado, pak.fechaEntrega, pak.intentos)
+}
+
+
+//var logg logis.LogisServiceClient - maybe
+
+func tipoDespacho(pak paquete){
+	if pak.origen == "pyme" {
+		ePyme(pak)
+	}else {
+		eRetail(pak)
+	}
+
+}
+
+func entrega(pak1 paquete, pak2 paquete){
+
+	if (pak2.id != "") {
+		if (pak1.valor >= pak2.valor) {
+			tipoDespacho(pak1)
+			tipoDespacho(pak2)
+		}else {
+			tipoDespacho(pak2)
+			tipoDespacho(pak1)
+		}
+	}else{
+		tipoDespacho(pak1)
+	}
+}
+		
