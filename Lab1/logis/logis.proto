@@ -34,7 +34,7 @@ message PackageYGeo{
     string destino = 8;
 }
 
-message oldregCamion{
+/*message oldregCamion{
     string id_pkg = 1;
 	string tipo = 2;
 	int32 valor = 3;
@@ -42,7 +42,7 @@ message oldregCamion{
 	string destino = 5;
 	int32 num_intentos = 6;
 	string fecha_entrega = 7;
-}
+}*/
 
 message RegCamion{
     string id = 1;
@@ -83,7 +83,6 @@ service LogisService{
 
     //servicios logistica a camion
     rpc ResEntrega(RegCamion) returns (ACK){}
-    //rpc UpdateEstado(EstadoPedido) returns (ACK){}
     
 }
 

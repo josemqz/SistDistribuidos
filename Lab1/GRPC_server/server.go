@@ -51,7 +51,7 @@ type financiero struct {
 	Valor       int32  `json: "valor"`
 	Estado      string `json: "estado"`
 	Intentos    int32  `json: "intentos"`
-	Seguimiento string `json: "seguimiento"`
+	//Seguimiento string `json: "seguimiento"`
 }
 
 //codigo de seguimiento para cada pedido
@@ -76,7 +76,7 @@ func failOnError(err error, msg string) {
 //
 //------------------------ FINANCIERO ------------------------
 //
-/*
+
 func haciaFinanciero(pak financiero){
 	conn, err := amqp.Dial("amqp:/guest:guest@localhost:5672")
 	failOnError(err, "error al conectar")
@@ -97,7 +97,25 @@ func haciaFinanciero(pak financiero){
 	failOnError(err,"error al enviar mensaje")
 
 }
-*/
+
+
+func paqueteFinanciero(i int){
+	
+	var pakfi financiero
+	var j = 0
+	pakfi.Id = RegistroSeguimiento[i].id_pkg
+	pakfi.Estado = RegistroSeguimiento[i].estado_pkg
+	pakfi.Intentos = RegistroSeguimiento[i].num_intentos
+
+	for j < len(Registros){
+		if RegistroSeguimiento[i].id_pkg == Registros[j].id{
+			pakfi.Valor = Registros[j].valor
+			pakfi.Tipo = Registros[i].tipo
+			break
+		}
+	}
+	haciaFinanciero(pakfi)
+}
 
 //
 //-------------------------- CAMIÓN --------------------------
@@ -112,13 +130,17 @@ func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.A
 
 			RegistroSeguimiento[i].estado_pkg = pkg.Estado
 			RegistroSeguimiento[i].num_intentos = pkg.Intentos
+
+			paqueteFinanciero(i)
+
 			return &logis.ACK{Ok: "ok"}, nil
 		}
 	}
 
+
+	
 	return &logis.ACK{Ok: "error"}, errors.New("No se encontró pedido en registro de seguimiento")
 
-	//enviar resultados económicos a financiero
 }
 
 
@@ -345,28 +367,53 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	return &logis.CodSeguimiento{Codigo: cod_tracking}, nil
 }
 
+/*
+func ConectarCamion(){
 
-func main() {
-
-
-	log.Println("Server running ...")
-
-	//conexión camiones
 	listenCamion, err := net.Listen("tcp", ":50055")
 	failOnError(err, "error de conexion con camiones")
-
-//conexión clientes
-	listenCliente, err := net.Listen("tcp", ":50051")
-	failOnError(err, "error de conexion con cliente")
-
-
 
 	srv := grpc.NewServer()
 	logis.RegisterLogisServiceServer(srv, &server{})
 
 	log.Fatalln(srv.Serve(listenCamion))
+}
+
+
+func ConectarCliente(){
+
+	listenCliente, err := net.Listen("tcp", ":50051")
+	failOnError(err, "error de conexion con cliente")
+
+	srv := grpc.NewServer()
+	logis.RegisterLogisServiceServer(srv, &server{})
+
 	log.Fatalln(srv.Serve(listenCliente))
+}
+*/
+
+func main() {
+
+	log.Println("Server running ...")
 	
+	//ConectarCliente()
+	//go ConectarCamion()
+	
+	listenCamion, err := net.Listen("tcp", ":50055")
+	failOnError(err, "error de conexion con camiones")
+	
+	listenCliente, err := net.Listen("tcp", ":50051")
+	failOnError(err, "error de conexion con cliente")
+
+	log.Fatalln("holi cliente")
+	srv := grpc.NewServer()
+	logis.RegisterLogisServiceServer(srv, &server{})
+	log.Fatalln("como estas")
+
+	log.Fatalln(srv.Serve(listenCliente))
+	log.Fatalln(srv.Serve(listenCamion))
+	log.Fatalln("shao")
+
 	//colas rabbitmq con financiero
 
 }

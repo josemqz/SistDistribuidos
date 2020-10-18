@@ -9,8 +9,7 @@ import (
 	"time"
 	"context"
 	"strconv"
-	"reflect"
-	
+
 	"encoding/csv"
 
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"

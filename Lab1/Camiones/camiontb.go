@@ -106,7 +106,7 @@ func EstadoCamion(idCam string, exito bool, reg RegPackage, camion logis.LogisSe
 		estado = "nr"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()
 
 	r, err := camion.ResEntrega(ctx, &logis.RegCamion{Id: reg.id_pkg, Intentos: reg.num_intentos, Estado: estado})
@@ -291,7 +291,7 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 		tipoCam = "retail"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()
 
 	//pedir a logística un paquete
