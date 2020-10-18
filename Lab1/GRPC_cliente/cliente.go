@@ -9,6 +9,7 @@ import (
 	"time"
 	"context"
 	"strconv"
+	"reflect"
 	
 	"encoding/csv"
 
@@ -60,11 +61,10 @@ func main() {
 	log.Println("Cliente corriendo...")
 
 	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure(), grpc.WithBlock())
-	failOnError(err, "Error en conexión")
+	failOnError(err, "Error en conexión a servidor")
 	defer conn.Close()
 
 	cliente := logis.NewLogisServiceClient(conn)
-
 
 	if (opcion == 1){
 
@@ -108,20 +108,16 @@ func main() {
 	} else if (opcion == 2){
 		
 		var cod int32
+		var codHelp int
 
 		log.Println("Ingresar código de seguimiento de pedido: ")
 		
-		//read, err = reader.ReadString('\n')
-		//codHelp, _ := strconv.Atoi(read)
-		var codHelp int
 		_, err = fmt.Scanf("%d", &codHelp)
 		cod = int32(codHelp)
 	
 		for (err != nil) {
 			log.Println("Ingresar código de seguimiento de pedido: ")
 			
-			//read, err = reader.ReadString('\n')
-			//codHelp, _ = strconv.Atoi(read)
 			_, err = fmt.Scanf("%d", &codHelp)
 			cod = int32(codHelp)
 		}

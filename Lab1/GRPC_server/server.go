@@ -122,28 +122,34 @@ func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.A
 }
 
 
-func checkColasHelper(tipoCam string)(Package, bool){
+func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 
 	if tipoCam == "normal"{
 		if len(PaquetesPri) > 0{
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
+			log.Println("Cargando paquete prioritario...")
 			return pkg, true
 
 		} else if len(PaquetesNormal) > 0{
 			pkg := PaquetesNormal[0]
 			PaquetesPri = PaquetesNormal[1:]
+			log.Println("Cargando paquete normal...")
 			return pkg, true
 		}
+	
 	} else {
 		if len(PaquetesRetail) > 0{
 			pkg := PaquetesRetail[0]
 			PaquetesPri = PaquetesRetail[1:]
+			log.Println("Cargando paquete de retail...")
 			return pkg, true
-
-		} else if len(PaquetesPri) > 0{
+		
+		// condicion en caso de haber hecho recien un envio de retail
+		} else if (len(PaquetesPri) > 0) && prevRetail{ 
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
+			log.Println("Cargando paquete prioritario...")
 			return pkg, true
 		}
 	}
@@ -154,23 +160,24 @@ func checkColasHelper(tipoCam string)(Package, bool){
 
 //revisar colas mediante función auxiliar dependiendo del tipo de camión
 //que está solicitando y si es la primera o segunda peticióń de este
-func CheckColas(tipoCam string, numPeticion bool)(Package, bool){
+func CheckColas(tipoCam string, numPeticion bool, prevRetail bool)(Package, bool){
 
 	var pkg Package
 	var flagPeticion bool
 
 	if !numPeticion{
-		pkg, flagPeticion = checkColasHelper(tipoCam)
+		pkg, flagPeticion = checkColasHelper(tipoCam, prevRetail)
 
 	} else{
 		//esperar hasta que llegue algo a prioritario y normal
 		for {
-			pkg, flagPeticion = checkColasHelper(tipoCam)
+			pkg, flagPeticion = checkColasHelper(tipoCam, prevRetail)
 			if pkg.id != "" {
 				break
 			}
 			
-			time.Sleep(5000 * time.Nanosecond)
+			time.Sleep(1 * time.Second)
+			log.Println("Esperando que hayan paquetes en colas...\n")
 
 		}
 	}
@@ -184,15 +191,15 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.InfoCam)(*logis.Pa
 
 	tipoCam := tC.GetTipo()
 	idCam := tC.GetId()
-	
+	prevRetail := tC.GetPrevRetail()
+
 	//numPeticion representa la primera o segunda petición de paquete del camión
 	//flagPeticion es si tiene exito en la búsqueda en las colas
 	numPeticion := tC.GetNumPeticion()
 	var flagPeticion = false
 
 	//server revisa en orden de prioridad las colas para saber qué paquete enviar
-	pkg, flagPeticion := CheckColas(tipoCam, numPeticion)
-	//meter condición de retail en caso de aceptar prioritario (haber enviado retails)
+	pkg, flagPeticion := CheckColas(tipoCam, numPeticion, prevRetail)
 
 	//no hay paquetes en colas luego del tiempo de espera del camión
 	if !numPeticion && !flagPeticion{
@@ -344,21 +351,21 @@ func main() {
 
 	log.Println("Server running ...")
 
+	//conexión camiones
+	listenCamion, err := net.Listen("tcp", ":50055")
+	failOnError(err, "error de conexion con camiones")
 
 //conexión clientes
 	listenCliente, err := net.Listen("tcp", ":50051")
 	failOnError(err, "error de conexion con cliente")
 
-//conexión camiones
-	listenCamion, err := net.Listen("tcp", ":50052")
-	failOnError(err, "error de conexion con cambiones")
 
 
 	srv := grpc.NewServer()
 	logis.RegisterLogisServiceServer(srv, &server{})
 
-	log.Fatalln(srv.Serve(listenCliente))
 	log.Fatalln(srv.Serve(listenCamion))
+	log.Fatalln(srv.Serve(listenCliente))
 	
 	//colas rabbitmq con financiero
 
