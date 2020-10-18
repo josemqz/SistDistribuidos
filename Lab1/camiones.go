@@ -224,7 +224,7 @@ func delivery(lc logis.LogisServiceClient, tipoCam string, idCam string, /*WaitG
 		// si no hay aun segundo paquete
 		if !rs2 {
 			//espera el tpo definido por usuario por otro paquete
-			time.sleep(tpo1)
+			time.Sleep(tpo1)
 			var otro = obtenerPaquete(lc, tipoCam, idCam)
 			entrega(primero, otro) //la funcion entrega maneja si existe o es null el segundo
 		}else{
@@ -234,8 +234,14 @@ func delivery(lc logis.LogisServiceClient, tipoCam string, idCam string, /*WaitG
 	//waitgroup?	
 	return true
 }
-
-
+/*
+GRPC_server/server.go:173:3: PaquetesNormal declared but not used
+GRPC_server/server.go:175:3: PaquetesPri declared but not used
+GRPC_server/server.go:177:3: PaquetesRetail declared but not used
+GRPC_server/server.go:257:3: pkg declared but not used
+GRPC_server/server.go:257:8: flagPeticion declared but not used
+GRPC_server/server.go:262:9: flagPeticion declared but not used
+*/
 
 
 //
@@ -267,7 +273,6 @@ func main(){
 	go delivery(lc logis.LogisServiceClient, "retail" , "Ret1" )
 	go delivery(lc logis.LogisServiceClient, "retail" , "Ret2")
 	go delivery(lc logis.LogisServiceClient, "normal" , "norm")	
-
 
 
 

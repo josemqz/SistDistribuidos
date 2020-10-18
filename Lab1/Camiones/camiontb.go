@@ -62,7 +62,7 @@ func main(){
 	read, err := reader.ReadString('\n')
 	dlvr_time := strconv.Atoi(read)
 
-	for (err != nil || dlvr_time <= 0) {
+	for ((err != nil) || dlvr_time <= 0) {
 
 		fmt.Print("Ingresar tiempo de viaje para envíos: ")
 
@@ -73,7 +73,7 @@ func main(){
 
 	//conexión
 	conn, err := grpc.Dial("localhost:50052", grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
+	if (err != nil) {
 		log.Fatalln(err)
 	}
 	defer conn.Close()

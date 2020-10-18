@@ -17,14 +17,13 @@ Supuestos e información útil:
 Instrucciones:
 
     Ejecutar en terminal:
-
-    export GOROOT=/media/joseesmuyoriginal/opt/go \  *esto es mi caso específico
+    *este es mi caso personal
+    export GOROOT=/media/joseesmuyoriginal/opt/go \
     export GOPATH=$HOME/go \
     export GOBIN=$GOPATH/bin \
     export PATH=$PATH:$GOROOT:$GOPATH:$GOBIN
 
-    protoc -I logis --go_out=./logis --go_opt=paths=source_relative \
-    --go-grpc_out=./logis --go-grpc_opt=paths=source_relative logis/logis.proto
+    protoc -I logis --go_out=./logis --go_opt=paths=source_relative --go-grpc_out=./logis --go-grpc_opt=paths=source_relative logis/logis.proto
 
     go build -race -ldflags "-s -w" -o bin/server GRPC_server/server.go
 	bin/server

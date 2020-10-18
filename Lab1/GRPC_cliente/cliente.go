@@ -1,9 +1,10 @@
-package cliente
+package main
 
 import (
 	"log"
 	"fmt"
 	"bufio"
+	"io"
 	"os"
 	"time"
 	"context"
@@ -15,110 +16,115 @@ import (
 	"google.golang.org/grpc"
 )
 
+var usr_time int
+
 
 func main() {
 	
-	//pedir tiempo de espera entre pedidos por input
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Ingresar tiempo de espera entre pedidos: ")
+	log.Print("Ingresar tiempo de espera entre pedidos: ")
 
-	read, err := reader.ReadString('\n')
-	usr_time, _ := strconv.Atoi(read)
-	
-	for err != nil || usr_time <= 0{
+	_, err := fmt.Scanf("%d", &usr_time)
 
-		fmt.Print("Tiempo ingresado inválido!\n")
-		fmt.Print("Ingresar tiempo de espera entre pedidos: ")
 
-		read, err = reader.ReadString('\n')
-		usr_time, _ = strconv.Atoi(read)
+	for (err != nil){
+
+		log.Println("Tiempo ingresado inválido!\n")
+		log.Print("Ingresar tiempo de espera entre pedidos: ")
+		
+		_, err = fmt.Scanf("%d", &usr_time)
 	}
 
-	fmt.Print("Seleccionar opción: ")
-	fmt.Print("-------------------------------------")
-	fmt.Print("  1. Realizar pedidos			    |")
-	fmt.Print("  2. Solicitar seguimiento de pedido |")
-	fmt.Print("-------------------------------------\n")
+	var opcion int
 
-	read, err = reader.ReadString('\n')
-	opcion, _ := strconv.Atoi(read)
+	log.Println("-------------------------------------")
+	log.Println("  1. Realizar pedidos			      |")
+	log.Println("  2. Solicitar seguimiento de pedido |")
+	log.Println("-------------------------------------\n")
+	log.Print("Seleccionar opción: ")
 
-	for err != nil || (opcion != 1 && opcion != 2) {
+	_, err = fmt.Scanf("%d", &opcion)
 
-		fmt.Print("Opción inválida\n")
+	for (err != nil) || (opcion != 1 && opcion != 2) {
 
-		fmt.Print("Seleccionar opción: ")
-		fmt.Print("-------------------------------------")
-		fmt.Print("  1. Realizar pedidos			    |")
-		fmt.Print("  2. Solicitar seguimiento de pedido |")
-		fmt.Print("-------------------------------------\n")
+		log.Println("Opción inválida\n")
 
-		read, err = reader.ReadString('\n')
-		opcion, _ = strconv.Atoi(read)
+		log.Println("-------------------------------------")
+		log.Println("  1. Realizar pedidos			      |")
+		log.Println("  2. Solicitar seguimiento de pedido |")
+		log.Println("-------------------------------------\n")
+		log.Print("Seleccionar opción: ")
+
+		_, err = fmt.Scanf("%d", &opcion)
 
 	}
 
 	log.Println("Cliente corriendo...")
 
 	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		log.Fatalln(err)
-	}
+	failOnError(err, "Error en conexión")
 	defer conn.Close()
 
 	cliente := logis.NewLogisServiceClient(conn)
 
 
-	if opcion == 1{
+	if (opcion == 1){
 
 		var tipoT int = 1
 
-		fmt.Print("Seleccionar tipo de tienda:")
-		fmt.Print("-------------")
-		fmt.Print("  1. Pyme   |")
-		fmt.Print("  2. Retail |")
-		fmt.Print("-------------\n")
-		read, err = reader.ReadString('\n')
-		tipoT, _ = strconv.Atoi(read)
+		log.Println("-------------")
+		log.Println("  1. Pyme   |")
+		log.Println("  2. Retail |")
+		log.Println("-------------\n")
+		log.Print("Seleccionar tipo de tienda: ")
 
-		for err != nil || (tipoT != 1 && tipoT != 2) {
+		_, err = fmt.Scanf("%d", &tipoT)
 
-			fmt.Print("Opción inválida\n")
+		for ((err != nil) || (tipoT != 1 && tipoT != 2)) {
 
-			fmt.Print("Seleccionar tipo de tienda:")
-			fmt.Print("-------------")
-			fmt.Print("  1. Pyme   |")
-			fmt.Print("  2. Retail |")
-			fmt.Print("-------------\n")
+			log.Println("Opción inválida\n")
+
+			log.Println("Seleccionar tipo de tienda:")
+			log.Println("-------------")
+			log.Println("  1. Pyme   |")
+			log.Println("  2. Retail |")
+			log.Println("-------------\n")
 			
-			read, err = reader.ReadString('\n')
-			tipoT, _ = strconv.Atoi(read)
+			_, err = fmt.Scanf("%d", &tipoT)
 
 		}
 
 		if (tipoT == 1) {
 
+			log.Println("Leyendo csv pymes...")
 			records_pyme := leercsv("pymes.csv")
-			enviarPedidos(records_pyme, cliente, time.Duration(usr_time))
+			enviarPedidos("pyme", records_pyme, cliente)
 
 		} else if (tipoT == 2){
 
+			log.Println("Leyendo csv retail...")
 			records_retail := leercsv("retail.csv")
-			enviarPedidos(records_retail, cliente, time.Duration(usr_time))
+			enviarPedidos("retail", records_retail, cliente)
 		}
 	
-	} else if opcion == 2{
+	} else if (opcion == 2){
 		
-		fmt.Print("Ingresar código de seguimiento de pedido: ")
-			
-		read, err = reader.ReadString('\n')
-		cod, _ := strconv.ParseInt(read, 10, 32)
+		var cod int32
+
+		log.Println("Ingresar código de seguimiento de pedido: ")
+		
+		//read, err = reader.ReadString('\n')
+		//codHelp, _ := strconv.Atoi(read)
+		var codHelp int
+		_, err = fmt.Scanf("%d", &codHelp)
+		cod = int32(codHelp)
 	
-		for (err!=nil) {
-			fmt.Print("Ingresar código de seguimiento de pedido: ")
+		for (err != nil) {
+			log.Println("Ingresar código de seguimiento de pedido: ")
 			
-			read, err = reader.ReadString('\n')
-			cod, _ = strconv.ParseInt(read, 10, 32)
+			//read, err = reader.ReadString('\n')
+			//codHelp, _ = strconv.Atoi(read)
+			_, err = fmt.Scanf("%d", &codHelp)
+			cod = int32(codHelp)
 		}
 
 		doSeguimiento(cliente, cod)
@@ -127,50 +133,66 @@ func main() {
 }
 
 
+func failOnError(err error, msg string) {
+	if (err != nil) {
+	  log.Fatalf("%s: %s", msg, err)
+	}
+}
+
+
 func leercsv(arch string) ([][]string){
 	
 	csv_arch, err := os.Open(arch)
-	
-	if err != nil {
-		fmt.Println(err)
-	}
+	failOnError(err, "Error abriendo archivo csv")
 	defer csv_arch.Close()
+	
+	// Skip first row (line)
+	row1, err := bufio.NewReader(csv_arch).ReadSlice('\n')
+	failOnError(err, "Error interpretando csv (lectura primera línea)")
+
+	_, err = csv_arch.Seek(int64(len(row1)), io.SeekStart)
+	failOnError(err, "Error interpretando csv (lectura primera línea)")
 	
 	r := csv.NewReader(csv_arch)
 	records, err := r.ReadAll()
+	failOnError(err, "Error interpretando archivo csv")
 	
 	csv_arch.Close()
-	
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	
+	log.Println("csv leído")
+
 	return records
 }
 
 
-func enviarPedidos(records [][]string, client_var logis.LogisServiceClient, usr_time time.Duration){
+func enviarPedidos(tipoT string, records [][]string, client_var logis.LogisServiceClient){
+
+	log.Println("funcion: enviarPedidos")
 
 	//se realiza cada pedido
 	for _, rec := range records{
 
+		valorHelp, _ := strconv.Atoi(rec[2])
+		
 		request := &logis.Pedido{
 			Id: rec[0],
 			Producto: rec[1],
-			Valor: strconv.ParseInt(rec[2], 10, 32),
+			Valor: int32(valorHelp),
 			Tienda: rec[3],
 			Destino: rec[4],
-			Prioritario: strconv.ParseInt(rec[5], 10, 32),
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		if (tipoT == "pyme"){
+			priorHelp, _ := strconv.Atoi(rec[5])
+			request.Prioritario = int32(priorHelp)
+		}
+
+		log.Println("Pedido: ", request)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 	
 		response, err := client_var.PedidoCliente(ctx, request)
-		if err != nil {
-			log.Fatalln(err)
-		}
+		failOnError(err, "Error enviando pedido al servidor")		
 	
 		cod_seguimiento := response.GetCodigo()
 		log.Println("Pedido realizado\nCodigo de seguimiento: ", cod_seguimiento, "\n")
@@ -180,14 +202,18 @@ func enviarPedidos(records [][]string, client_var logis.LogisServiceClient, usr_
 	}
 }
 
-func doSeguimiento(ctx context.Context, client_var logis.LogisServiceClient, cod int32) {
+
+func doSeguimiento(client_var logis.LogisServiceClient, cod int32) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
 
 	seguimientoPkg := &logis.CodSeguimiento{Codigo: cod}
 
 	estado_pkg, err := client_var.SeguimientoCliente(ctx, seguimientoPkg)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	
+	failOnError(err, "Error de seguimiento de pedido")
+
 	
 	log.Println("Estado de pedido: " + estado_pkg.GetEstado())
 }

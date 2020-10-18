@@ -1,4 +1,4 @@
-package server
+package main
 
 import (
 	"context"
@@ -40,7 +40,7 @@ type Package struct{
 type PackageSeguimiento struct{
 	id_pkg string
 	estado_pkg string
-	id_camion int32
+	id_camion string
 	num_seguimiento int32
 	num_intentos int32
 }
@@ -63,11 +63,12 @@ var PaquetesPri []Package
 var PaquetesNormal []Package
 
 //registro de pedidos
-var Registros []RegPedido
-var RegistroSeguimiento []PackageSeguimiento
+var Registros = []RegPedido{}
+var RegistroSeguimiento = []PackageSeguimiento{}
+
 
 func failOnError(err error, msg string) {
-	if err != nil {
+	if (err != nil) {
 		log.Fatalf("%s: %s", msg, err)
 	}
 }
@@ -95,22 +96,20 @@ func haciaFinanciero(pak financiero){
 }
 */
 
+
 func main() {
+
 
 	log.Println("Server running ...")
 
 
 //conexión clientes
 	listenCliente, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	failOnError(err, "error de conexion con cliente")
 
 //conexión camiones
 	listenCamion, err := net.Listen("tcp", ":50052")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	failOnError(err, "error de conexion con cambiones")
 
 
 	srv := grpc.NewServer()
@@ -126,7 +125,7 @@ func main() {
 
 func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logis.CodSeguimiento, error) {
 	
-	log.Println("Pedido recibido")
+	log.Print("Pedido recibido")
 
 	//auxiliar para guardar valor de cod_tracking
 	help_cod_tracking := cod_tracking
@@ -139,26 +138,36 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 		} else if (pedido.Prioritario == 1){
 			tipoP = "prioritario"
 		}
+
 	} else {
 		tipoP = "retail"
 		cod_tracking = 0
 	}
 
+
 	nownow := time.Now()
-	log.Println(nownow)
 	var pId = pedido.Id
 	var pVal = pedido.Valor
 
 	//guardar en registro
-	Registros = append(Registros, RegPedido{timestamp:nownow, 
+	Registros = append(Registros, RegPedido{timestamp:nownow.Format("2006-01-02 15:04:05"), 
 											id:pId, 
 											tipo: tipoP, 
 											nombre: pedido.Producto, 
 											valor: pVal, 
 											origen: pedido.Tienda, 
 											destino: pedido.Destino, 
-											num_seguimiento: cod_tracking})
+											num_seguimiento: cod_tracking,
+	})
 
+	//guardar en registro de seguimiento
+	RegistroSeguimiento = append(RegistroSeguimiento, PackageSeguimiento{id_pkg: pId,
+														estado_pkg: "bdg",
+														id_camion: "",
+														num_seguimiento: cod_tracking,
+														num_intentos: 0,
+	})
+	
 	//transformar pedido en paquete
 	pkg := Package{id: pId,
 					num_seguimiento: cod_tracking,
@@ -167,13 +176,19 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 					num_intentos: 0,
 					estado: "bdg"}
 
+
 	//guardar paquete en cola
 	if (tipoP == "normal") {
-		PaquetesNormal := append(PaquetesNormal, pkg)
+		PaquetesNormal = append(PaquetesNormal, pkg)
+		log.Println("Paquete ingresado a cola normal\n")
+
 	} else if (tipoP == "prioritario") {
-		PaquetesPri := append(PaquetesPri, pkg)
+		PaquetesPri = append(PaquetesPri, pkg)
+		log.Println("Paquete ingresado a cola prioritaria\n")
+	
 	} else {
-		PaquetesRetail := append(PaquetesRetail, pkg)
+		PaquetesRetail = append(PaquetesRetail, pkg)
+		log.Println("Paquete ingresado a cola de retail\n")
 	}
 
 	//se vuelve al valor original del codigo de seguimiento
@@ -188,7 +203,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 
 
 //Cliente solicita estado de paquete
-func (s *server) SeguimientoCliente(cs *logis.CodSeguimiento) (*logis.EstadoPedido, error) {
+func (s *server) SeguimientoCliente(ctx context.Context, cs *logis.CodSeguimiento) (*logis.EstadoPedido, error) {
 
 	for _, regseg := range RegistroSeguimiento{
 		if (cs.GetCodigo() == regseg.num_seguimiento){
@@ -215,7 +230,7 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.TipoCam)(*logis.Pa
 
 	//no hay paquetes en colas luego del tiempo de espera del camión
 	if !numPeticion && !flagPeticion{
-		return nil
+		return &logis.PackageYGeo{}, nil
 	}
 	
 	//obtener origen y destino del pedido
@@ -250,28 +265,33 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.TipoCam)(*logis.Pa
 
 //revisar colas mediante función auxiliar dependiendo del tipo de camión
 //que está solicitando y si es la primera o segunda peticióń de este
-func CheckColas(tipoCam string, numPeticion bool)(pkg Package, flagPeticion bool){
+func CheckColas(tipoCam string, numPeticion bool)(Package, bool){
+
+	var pkg Package
+	var flagPeticion bool
 
 	if !numPeticion{
-		pkg, flagPeticion := checkColasHelper(tipoCam)
+		pkg, flagPeticion = checkColasHelper(tipoCam)
 
 	} else{
 		//esperar hasta que llegue algo a prioritario y normal
 		for {
-			pkg, flagPeticion := checkColasHelper(tipoCam)
-			if pkg != nil{
+			pkg, flagPeticion = checkColasHelper(tipoCam)
+			if pkg.id != "" {
 				break
 			}
 			
-			time.Sleep(50 * time.Milisecond)
+			time.Sleep(5000 * time.Nanosecond)
 
 		}
 	}
+
 	return pkg, flagPeticion
 }
 
 
 func checkColasHelper(tipoCam string)(Package, bool){
+
 	if tipoCam == "normal"{
 		if len(PaquetesPri) > 0{
 			pkg := PaquetesPri[0]
@@ -295,7 +315,8 @@ func checkColasHelper(tipoCam string)(Package, bool){
 			return pkg, true
 		}
 	}
-	return nil, nil
+	
+	return Package{}, false
 }
 
 
