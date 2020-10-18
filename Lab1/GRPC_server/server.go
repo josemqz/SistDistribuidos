@@ -7,9 +7,11 @@ import (
 	"time"
 	"errors"
 	//"amqp"
-
+	"encoding/json"
+	"strconv"
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
+	"github.com/streadway/amqp"
 )
 
 type server struct {
@@ -86,7 +88,8 @@ func haciaFinanciero(pak financiero){
 	failOnError(err, "error al abrir canal")
 	defer ch.Close()
 
-	q, err:= ch.QueueDeclare(
+	
+	q, err := ch.QueueDeclare(
 		"hello",
 		false,   
 		false,   
@@ -94,7 +97,19 @@ func haciaFinanciero(pak financiero){
 		false,   
 		nil,    
 	)
-	failOnError(err,"error al enviar mensaje")
+	failOnError(err,"error al hacer una cola")
+
+	cosa, err := json.Marshal(pak)
+	err = ch.Publish(
+		"",
+		q.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "text/json",
+			Body: []byte(cosa),
+		})
+		failOnError(err, "no se envio mensaje")
 
 }
 
