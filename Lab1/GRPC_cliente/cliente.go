@@ -21,24 +21,40 @@ func main() {
 	//pedir tiempo de espera entre pedidos por input
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Ingresar tiempo de espera entre pedidos: ")
-	usr_time, _ := strconv.ParseInt(reader.ReadString('\n'), 10, 32)
+
+	read, err := reader.ReadString('\n')
+	usr_time, _ := strconv.Atoi(read)
+	
+	for err != nil || usr_time <= 0{
+
+		fmt.Print("Tiempo ingresado inválido!\n")
+		fmt.Print("Ingresar tiempo de espera entre pedidos: ")
+
+		read, err = reader.ReadString('\n')
+		usr_time, _ = strconv.Atoi(read)
+	}
 
 	fmt.Print("Seleccionar opción: ")
 	fmt.Print("-------------------------------------")
 	fmt.Print("  1. Realizar pedidos			    |")
 	fmt.Print("  2. Solicitar seguimiento de pedido |")
-	fmt.Print("-------------------------------------")
-	opcion, err := strconv.ParseInt(reader.ReadString('\n'), 10, 32)
+	fmt.Print("-------------------------------------\n")
 
-	for (err!=nil) || (opcion != 1 && opcion != 2) {
+	read, err = reader.ReadString('\n')
+	opcion, _ := strconv.Atoi(read)
 
-		fmt.Print("Opción inválida")
+	for err != nil || (opcion != 1 && opcion != 2) {
+
+		fmt.Print("Opción inválida\n")
+
 		fmt.Print("Seleccionar opción: ")
 		fmt.Print("-------------------------------------")
 		fmt.Print("  1. Realizar pedidos			    |")
 		fmt.Print("  2. Solicitar seguimiento de pedido |")
-		fmt.Print("-------------------------------------")
-		opcion, err := reader.ReadString('\n')
+		fmt.Print("-------------------------------------\n")
+
+		read, err = reader.ReadString('\n')
+		opcion, _ = strconv.Atoi(read)
 
 	}
 
@@ -50,29 +66,62 @@ func main() {
 	}
 	defer conn.Close()
 
-	client := logis.NewLogisServiceClient(conn)
+	cliente := logis.NewLogisServiceClient(conn)
 
 
 	if opcion == 1{
-		//leer CSVs
-		records_pyme := leercsv("pymes.csv")
-		records_retail := leercsv("retail.csv")
-		
-		//enviar pedidos pyme
-		enviarPedidos(records_pyme, client, usr_time)
-		enviarPedidos(records_retail, client, usr_time)
+
+		var tipoT int = 1
+
+		fmt.Print("Seleccionar tipo de tienda:")
+		fmt.Print("-------------")
+		fmt.Print("  1. Pyme   |")
+		fmt.Print("  2. Retail |")
+		fmt.Print("-------------\n")
+		read, err = reader.ReadString('\n')
+		tipoT, _ = strconv.Atoi(read)
+
+		for err != nil || (tipoT != 1 && tipoT != 2) {
+
+			fmt.Print("Opción inválida\n")
+
+			fmt.Print("Seleccionar tipo de tienda:")
+			fmt.Print("-------------")
+			fmt.Print("  1. Pyme   |")
+			fmt.Print("  2. Retail |")
+			fmt.Print("-------------\n")
+			
+			read, err = reader.ReadString('\n')
+			tipoT, _ = strconv.Atoi(read)
+
+		}
+
+		if (tipoT == 1) {
+
+			records_pyme := leercsv("pymes.csv")
+			enviarPedidos(records_pyme, cliente, time.Duration(usr_time))
+
+		} else if (tipoT == 2){
+
+			records_retail := leercsv("retail.csv")
+			enviarPedidos(records_retail, cliente, time.Duration(usr_time))
+		}
 	
 	} else if opcion == 2{
 		
 		fmt.Print("Ingresar código de seguimiento de pedido: ")
-		cod, err := strconv.ParseInt(reader.ReadString('\n'), 10, 32)
+			
+		read, err = reader.ReadString('\n')
+		cod, _ := strconv.ParseInt(read, 10, 32)
 	
 		for (err!=nil) {
 			fmt.Print("Ingresar código de seguimiento de pedido: ")
-			cod, err := strconv.ParseInt(reader.ReadString('\n'), 10, 32)
+			
+			read, err = reader.ReadString('\n')
+			cod, _ = strconv.ParseInt(read, 10, 32)
 		}
 
-		doSeguimiento(ctx, client, cod)
+		doSeguimiento(cliente, cod)
 	}
 
 }

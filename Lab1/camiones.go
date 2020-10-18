@@ -201,7 +201,7 @@ func tipoDespacho(pak paquete){
 
 func entrega(pak1 paquete, pak2 paquete){
 
-	if pak2.id != "null" {
+	if pak2 != nil {
 		if (pak1.valor >= pak2.valor) {
 			tipoDespacho(pak1)
 			tipoDespacho(pak2)
@@ -221,21 +221,29 @@ func delivery(lc logis.LogisServiceClient, tipoCam string, idCam string, /*WaitG
 	
 	if rs1 == true {
 		var rs2, segundo = obtenerPaquete(lc, tipoCam, idCam)
-
 		// si no hay aun segundo paquete
 		if !rs2 {
-
-		// intentar de nuevo?
-
+			//espera el tpo definido por usuario por otro paquete
+			time.sleep(tpo1)
+			var otro = obtenerPaquete(lc, tipoCam, idCam)
+			entrega(primero, otro) //la funcion entrega maneja si existe o es null el segundo
+		}else{
+			entrega(primero, segundo)
 		}
-	}	
-
-
+	}
+	//waitgroup?	
+	return true
 }
 
 
 
-//__________________________
+
+//
+
+
+
+
+//___________________________________________________
 
 func main(){
 
@@ -244,7 +252,7 @@ func main(){
 		log.Fatalf("\ndid not connect with server: %v", err)
 	}
 	defer conn.Close()
-	c := logis.NewLogisServiceClient(conn)
+	cl := logis.NewLogisServiceClient(conn)
 
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Ingrese tiempo espera segundo pedido\n")
@@ -256,7 +264,9 @@ func main(){
 	tpoEnvio, _ = strconv.Atoi(strings.TrimSuffix(texto, "\n"))
 
 	
-
+	go delivery(lc logis.LogisServiceClient, "retail" , "Ret1" )
+	go delivery(lc logis.LogisServiceClient, "retail" , "Ret2")
+	go delivery(lc logis.LogisServiceClient, "normal" , "norm")	
 
 
 

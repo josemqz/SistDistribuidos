@@ -16,16 +16,22 @@ message Pedido{
 
 message Package{
     string id = 1;
+	int32 numSeguimiento = 2;
+	string tipo = 3;
+	int32 valor = 4;
+	int32 numIntentos = 5;
+	string estado = 6;
+}
+
+message PackageYGeo{
+    string id = 1;
 	int32 num_seguimiento = 2;
 	string tipo = 3;
 	int32 valor = 4;
 	int32 num_intentos = 5;
 	string estado = 6;
-}
-
-message Geo{
-    string origen = 1;
-    string destino = 2;
+    string origen = 7;
+    string destino = 8;
 }
 
 message regCamion{
@@ -55,8 +61,9 @@ message paquete{
     string intentos = 6;
 }
 
-message tipoCam{
+message TipoCam{
     string tipo = 1;
+    bool numPeticion = 2;
 }
 
 message paqRecibido{
@@ -67,15 +74,13 @@ message paqRecibido{
     string estado = 5;
 }
 
-message mIntento{
-    int intento = 1;
-}
-
 
 service LogisService{
     //servicios logistica a cliente
     rpc PedidoCliente(Pedido) returns (CodSeguimiento) {}
     rpc SeguimientoCliente(CodSeguimiento) returns (EstadoPedido) {}
+
+    rpc PedidoACamion(TipoCam) returns (PackageYGeo) {}
 
     //servicios logistica a camion
    // rpc SolPaquetes(tipoCam) returns (paquete){}

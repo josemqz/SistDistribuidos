@@ -20,6 +20,7 @@ type LogisServiceClient interface {
 	//servicios logistica a cliente
 	PedidoCliente(ctx context.Context, in *Pedido, opts ...grpc.CallOption) (*CodSeguimiento, error)
 	SeguimientoCliente(ctx context.Context, in *CodSeguimiento, opts ...grpc.CallOption) (*EstadoPedido, error)
+	PedidoACamion(ctx context.Context, in *TipoCam, opts ...grpc.CallOption) (*PackageYGeo, error)
 }
 
 type logisServiceClient struct {
@@ -48,6 +49,15 @@ func (c *logisServiceClient) SeguimientoCliente(ctx context.Context, in *CodSegu
 	return out, nil
 }
 
+func (c *logisServiceClient) PedidoACamion(ctx context.Context, in *TipoCam, opts ...grpc.CallOption) (*PackageYGeo, error) {
+	out := new(PackageYGeo)
+	err := c.cc.Invoke(ctx, "/logis.LogisService/PedidoACamion", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LogisServiceServer is the server API for LogisService service.
 // All implementations must embed UnimplementedLogisServiceServer
 // for forward compatibility
@@ -55,6 +65,7 @@ type LogisServiceServer interface {
 	//servicios logistica a cliente
 	PedidoCliente(context.Context, *Pedido) (*CodSeguimiento, error)
 	SeguimientoCliente(context.Context, *CodSeguimiento) (*EstadoPedido, error)
+	PedidoACamion(context.Context, *TipoCam) (*PackageYGeo, error)
 	mustEmbedUnimplementedLogisServiceServer()
 }
 
@@ -67,6 +78,9 @@ func (UnimplementedLogisServiceServer) PedidoCliente(context.Context, *Pedido) (
 }
 func (UnimplementedLogisServiceServer) SeguimientoCliente(context.Context, *CodSeguimiento) (*EstadoPedido, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SeguimientoCliente not implemented")
+}
+func (UnimplementedLogisServiceServer) PedidoACamion(context.Context, *TipoCam) (*PackageYGeo, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PedidoACamion not implemented")
 }
 func (UnimplementedLogisServiceServer) mustEmbedUnimplementedLogisServiceServer() {}
 
@@ -117,6 +131,24 @@ func _LogisService_SeguimientoCliente_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LogisService_PedidoACamion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TipoCam)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LogisServiceServer).PedidoACamion(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/logis.LogisService/PedidoACamion",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LogisServiceServer).PedidoACamion(ctx, req.(*TipoCam))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _LogisService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "logis.LogisService",
 	HandlerType: (*LogisServiceServer)(nil),
@@ -128,6 +160,10 @@ var _LogisService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SeguimientoCliente",
 			Handler:    _LogisService_SeguimientoCliente_Handler,
+		},
+		{
+			MethodName: "PedidoACamion",
+			Handler:    _LogisService_PedidoACamion_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

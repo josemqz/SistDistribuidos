@@ -26,8 +26,8 @@ Instrucciones:
     protoc -I logis --go_out=./logis --go_opt=paths=source_relative \
     --go-grpc_out=./logis --go-grpc_opt=paths=source_relative logis/logis.proto
 
-    go build -race -ldflags "-s -w" -o bin/server server/main.go
+    go build -race -ldflags "-s -w" -o bin/server GRPC_server/server.go
 	bin/server
 
-    go build -race -ldflags "-s -w" -o bin/cliente cliente/main.go
+    go build -race -ldflags "-s -w" -o bin/cliente GRPC_cliente/cliente.go
 	bin/cliente

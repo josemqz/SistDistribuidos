@@ -2,13 +2,15 @@ package camion
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
+	"os"
+	"strconv"
 
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
 
-	//"os"
 	//"bufio"
 	//"io"
 )
@@ -28,19 +30,46 @@ var RegistroCN []RegPackage
 var RegistroCR1 []RegPackage
 var RegistroCR2 []RegPackage
 
-var pkg_time int32
+var pkg_time int
+var dlvr_time int
+
+//si camiones están en la central
+var CentralCR1 = true
+var CentralCR2 = true
+var CentralCN = true
+
 
 func main(){
 	
 	//pedir tiempo de espera entre pedidos por input
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Ingresar tiempo de espera entre pedidos: ")
-	pkg_time, err := strconv.ParseInt(reader.ReadString('\n'), 10, 32)
+
+	fmt.Print("Ingresar tiempo de espera entre pedidos de camiones: ")
+
+	read, err := reader.ReadString('\n')
+	pkg_time := strconv.Atoi(read)
 
 	for (err != nil) {
-		fmt.Print("Ingresar tiempo de espera entre pedidos: ")
-		pkg_time, err := strconv.ParseInt(reader.ReadString('\n'), 10, 32)
+		fmt.Print("Ingresar tiempo de espera entre pedidos de camiones: ")
+
+		read, err := reader.ReadString('\n')
+		pkg_time := strconv.Atoi(read)
 	}
+
+	//tiempo envíos
+	fmt.Print("Ingresar tiempo de viaje para envíos: ")
+
+	read, err := reader.ReadString('\n')
+	dlvr_time := strconv.Atoi(read)
+
+	for (err != nil || dlvr_time <= 0) {
+
+		fmt.Print("Ingresar tiempo de viaje para envíos: ")
+
+		read, err := reader.ReadString('\n')
+		dlvr_time := strconv.Atoi(read)
+	}
+
 
 	//conexión
 	conn, err := grpc.Dial("localhost:50052", grpc.WithInsecure(), grpc.WithBlock())
@@ -49,10 +78,22 @@ func main(){
 	}
 	defer conn.Close()
 
+
 	//instanciaciones
-	go initCamionPyme("CN", conn)
-	go initCamionRetail("CR1", conn)
-	go initCamionRetail("CR2", conn)
+	for {
+		if CentralCR1{
+			CentralCR1 = false
+			go initCamion("CR1", conn)
+		}
+		if CentralCR2{
+			CentralCR2 = false
+			go initCamion("CR2", conn)
+		}
+		if CentralCN{
+			CentralCN = false
+			go initCamion("CN", conn)
+		}
+	}
 
 }
 
@@ -60,27 +101,51 @@ func initCamion(idCam string, conn ClientConn /*o LogisServiceClientConn*/) (){
 
 	camion := logis.NewLogisServiceClient(conn)
 
-	pkg1, geo1 := GuardarPedido(camion, idCam, true)
+	reg1 := GuardarPedido(camion, idCam, true)
 
 	//time.wait(pkg_time*time.Second)
 	time.Sleep(time.Duration(pkg_time) * time.Second)
 
 	//pedir a logis paquete
-	pkg2, geo2 := GuardarPedido(camion, idCam, false)
+	reg2 := GuardarPedido(camion, idCam, false)
 
-	Delivery(pkg1,geo1,pkg2,geo2)
+	//envíos
+	Delivery(reg1, reg2)
 
 	//enviar estado de paquetes (no) enviados
 	camion.EstadoCamion()
-	//if dos paquetes
+	if idCam == "CR1"{
+		CentralCR1 = true
+	}
+	else if idCam == "CR2"{
+		CentralCR2 = true
+	}
+	else{
+		CentralCN = true
+	}
+
+	//if dos paquetes | if reg2 != nil (?)
 	camion.EstadoCamion()
+	if idCam == "CR1"{
+		CentralCR1 = true
+	}
+	else if idCam == "CR2"{
+		CentralCR2 = true
+	}
+	else{
+		CentralCN = true
+	}
+
+	//hacer funcion ^ ^ ^
 
 }
 
-//se pide un paquete y se guarda en el registro. intento representa si es
-//la primera o segunda vez que se pide, para saber si logístico debe esperar
-func GuardarPedido(camion logis.LogisServiceClient, idCam string, intento bool) (*logis.Package, *logis.Geo){
 
+//se pide un paquete y se guarda en el registro. numPeticion representa si es
+//la primera (true) o segunda vez (false) que se pide, para saber si logístico debe esperar
+func GuardarPedido(camion logis.LogisServiceClient, idCam string, numPeticion bool) (RegPackage){
+
+	//tipo de camión
 	if idCam == "CN"{
 		tipoCam := "normal"
 	} else{
@@ -88,13 +153,14 @@ func GuardarPedido(camion logis.LogisServiceClient, idCam string, intento bool) 
 	}
 
 	//pedir a logis paquete
-	pkg, geo := camion.PedidoACamion(&logis.tipoCam{tipo: tipoCam}, &logis.mIntento{intento: intento})
+	pkg, geo := camion.PedidoACamion(&logis.tipoCam{Tipo: tipoCam}, numPeticion)
 
-	if (intento == false && pkg/*pkg == nil?*/){
-		return nil,nil
+	//si segunda petición de paquete no fue exitosa se retorna nil y ya uwu
+	if (numPeticion == false && pkg == nil){
+		return nil
 	}
 	
-		//guardar en registro
+	//guardar en registro
 	reg := RegPackage{id_pkg: pkg.Id,
 						tipo: pkg.Tipo,
 						valor: pkg.Valor,
@@ -111,14 +177,24 @@ func GuardarPedido(camion logis.LogisServiceClient, idCam string, intento bool) 
 		RegistroCN = append(RegistroCN, reg)
 	}
 
-	return (pkg, geo)
+	return reg
 }
 
 
-func Delivery(){
+func Delivery(reg1, reg2){
 	
 	//una vez listo para salir a hacer entregas, esperar un tiempo (puede ser el mismo 
 	//independientemente del destino, o variar según este)
+	
+	//if reg2 != nil
+		//comparar ingresos de cada paquete
+	
+	//envio(paqueteActual) -> intenta entregar
+	//if not entregado; estado paquete 2 = false
+	
+	//if reg2 != nil
+		//envio(paqueteActual)
+
 	
 }
 
