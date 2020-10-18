@@ -6,7 +6,7 @@ import (
 	"log"
 	"github.com/streadway/amqp"
 	"encoding/json"
-
+	"fmt"
 	//"time"
 	//"bufio"
 	//"io"
@@ -52,7 +52,7 @@ var norecib []EnviosFinanzas
 func convertjson(inf []byte) EnviosFinanzas{
 	var sstruc EnviosFinanzas
 
-	err := json.Unmarshall([]byte(inf), &sstruc)
+	err := json.Unmarshal([]byte(inf), &sstruc)
 	if err != nil{
 		fmt.Println(err)
 	}
@@ -151,7 +151,7 @@ func main(){
 		for d := range msgs {
 			log.Printf("Se ha recibido información")
 			nuevo := convertjson(d.Body)
-			if(nuevo.Estado == nr){
+			if(nuevo.Estado == "nr"){
 				norecib = append(norecib, nuevo)
 			}
 			contador(nuevo)

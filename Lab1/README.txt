@@ -52,8 +52,8 @@ Instrucciones:
     > go build -race -ldflags "-s -w" -o bin/cliente GRPC_cliente/cliente.go
 	> bin/cliente
 
-    > go build -race -ldflags "-s -w" -o bin/cliente Camiones/camiontb.go
-	> bin/camiontb
+    > go build -race -ldflags "-s -w" -o bin/camiones Camiones/camiontb.go
+	> bin/camiones
 
     > go build -race -ldflags "-s -w" -o bin/financiero financiero.go
 	> bin/financiero

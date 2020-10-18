@@ -170,7 +170,7 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 
 		} else if len(PaquetesNormal) > 0{
 			pkg := PaquetesNormal[0]
-			PaquetesPri = PaquetesNormal[1:]
+			PaquetesNormal = PaquetesNormal[1:]
 			log.Println("Cargando paquete normal...")
 			return pkg, true
 		}
@@ -178,7 +178,7 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 	} else {
 		if len(PaquetesRetail) > 0{
 			pkg := PaquetesRetail[0]
-			PaquetesPri = PaquetesRetail[1:]
+			PaquetesRetail = PaquetesRetail[1:]
 			log.Println("Cargando paquete de retail...")
 			return pkg, true
 		
@@ -382,7 +382,21 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	return &logis.CodSeguimiento{Codigo: cod_tracking}, nil
 }
 
-/*
+
+func ConectarCliente(){
+
+	listenCliente, err := net.Listen("tcp", ":50051")
+	failOnError(err, "error de conexion con cliente")
+
+	srv := grpc.NewServer()
+	log.Println("ble")
+	logis.RegisterLogisServiceServer(srv, &server{})
+	log.Println("ble2 :eyes:")
+
+	log.Fatalln(srv.Serve(listenCliente))
+}
+
+
 func ConectarCamion(){
 
 	listenCamion, err := net.Listen("tcp", ":50055")
@@ -395,40 +409,11 @@ func ConectarCamion(){
 }
 
 
-func ConectarCliente(){
-
-	listenCliente, err := net.Listen("tcp", ":50051")
-	failOnError(err, "error de conexion con cliente")
-
-	srv := grpc.NewServer()
-	logis.RegisterLogisServiceServer(srv, &server{})
-
-	log.Fatalln(srv.Serve(listenCliente))
-}
-*/
-
 func main() {
 
 	log.Println("Server running ...")
 	
-	//ConectarCliente()
-	//go ConectarCamion()
-	
-	listenCamion, err := net.Listen("tcp", ":50055")
-	failOnError(err, "error de conexion con camiones")
-	
-	listenCliente, err := net.Listen("tcp", ":50051")
-	failOnError(err, "error de conexion con cliente")
-
-	log.Fatalln("holi cliente")
-	srv := grpc.NewServer()
-	logis.RegisterLogisServiceServer(srv, &server{})
-	log.Fatalln("como estas")
-
-	log.Fatalln(srv.Serve(listenCliente))
-	log.Fatalln(srv.Serve(listenCamion))
-	log.Fatalln("shao")
-
-	//colas rabbitmq con financiero
+	go ConectarCamion()
+	ConectarCliente()
 
 }
