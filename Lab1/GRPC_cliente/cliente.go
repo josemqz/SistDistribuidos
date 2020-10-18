@@ -25,7 +25,6 @@ func main() {
 
 	_, err := fmt.Scanf("%d", &usr_time)
 
-
 	for (err != nil){
 
 		log.Println("Tiempo ingresado inválido!\n")

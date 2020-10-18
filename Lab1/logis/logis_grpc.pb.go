@@ -20,7 +20,10 @@ type LogisServiceClient interface {
 	//servicios logistica a cliente
 	PedidoCliente(ctx context.Context, in *Pedido, opts ...grpc.CallOption) (*CodSeguimiento, error)
 	SeguimientoCliente(ctx context.Context, in *CodSeguimiento, opts ...grpc.CallOption) (*EstadoPedido, error)
-	PedidoACamion(ctx context.Context, in *TipoCam, opts ...grpc.CallOption) (*PackageYGeo, error)
+	//solicitud de paquete de camión a logística
+	PedidoACamion(ctx context.Context, in *InfoCam, opts ...grpc.CallOption) (*PackageYGeo, error)
+	//servicios logistica a camion
+	ResEntrega(ctx context.Context, in *RegCamion, opts ...grpc.CallOption) (*ACK, error)
 }
 
 type logisServiceClient struct {
@@ -49,9 +52,18 @@ func (c *logisServiceClient) SeguimientoCliente(ctx context.Context, in *CodSegu
 	return out, nil
 }
 
-func (c *logisServiceClient) PedidoACamion(ctx context.Context, in *TipoCam, opts ...grpc.CallOption) (*PackageYGeo, error) {
+func (c *logisServiceClient) PedidoACamion(ctx context.Context, in *InfoCam, opts ...grpc.CallOption) (*PackageYGeo, error) {
 	out := new(PackageYGeo)
 	err := c.cc.Invoke(ctx, "/logis.LogisService/PedidoACamion", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *logisServiceClient) ResEntrega(ctx context.Context, in *RegCamion, opts ...grpc.CallOption) (*ACK, error) {
+	out := new(ACK)
+	err := c.cc.Invoke(ctx, "/logis.LogisService/ResEntrega", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +77,10 @@ type LogisServiceServer interface {
 	//servicios logistica a cliente
 	PedidoCliente(context.Context, *Pedido) (*CodSeguimiento, error)
 	SeguimientoCliente(context.Context, *CodSeguimiento) (*EstadoPedido, error)
-	PedidoACamion(context.Context, *TipoCam) (*PackageYGeo, error)
+	//solicitud de paquete de camión a logística
+	PedidoACamion(context.Context, *InfoCam) (*PackageYGeo, error)
+	//servicios logistica a camion
+	ResEntrega(context.Context, *RegCamion) (*ACK, error)
 	mustEmbedUnimplementedLogisServiceServer()
 }
 
@@ -79,8 +94,11 @@ func (UnimplementedLogisServiceServer) PedidoCliente(context.Context, *Pedido) (
 func (UnimplementedLogisServiceServer) SeguimientoCliente(context.Context, *CodSeguimiento) (*EstadoPedido, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SeguimientoCliente not implemented")
 }
-func (UnimplementedLogisServiceServer) PedidoACamion(context.Context, *TipoCam) (*PackageYGeo, error) {
+func (UnimplementedLogisServiceServer) PedidoACamion(context.Context, *InfoCam) (*PackageYGeo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PedidoACamion not implemented")
+}
+func (UnimplementedLogisServiceServer) ResEntrega(context.Context, *RegCamion) (*ACK, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResEntrega not implemented")
 }
 func (UnimplementedLogisServiceServer) mustEmbedUnimplementedLogisServiceServer() {}
 
@@ -132,7 +150,7 @@ func _LogisService_SeguimientoCliente_Handler(srv interface{}, ctx context.Conte
 }
 
 func _LogisService_PedidoACamion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TipoCam)
+	in := new(InfoCam)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -144,7 +162,25 @@ func _LogisService_PedidoACamion_Handler(srv interface{}, ctx context.Context, d
 		FullMethod: "/logis.LogisService/PedidoACamion",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LogisServiceServer).PedidoACamion(ctx, req.(*TipoCam))
+		return srv.(LogisServiceServer).PedidoACamion(ctx, req.(*InfoCam))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LogisService_ResEntrega_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegCamion)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LogisServiceServer).ResEntrega(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/logis.LogisService/ResEntrega",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LogisServiceServer).ResEntrega(ctx, req.(*RegCamion))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -164,6 +200,10 @@ var _LogisService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PedidoACamion",
 			Handler:    _LogisService_PedidoACamion_Handler,
+		},
+		{
+			MethodName: "ResEntrega",
+			Handler:    _LogisService_ResEntrega_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

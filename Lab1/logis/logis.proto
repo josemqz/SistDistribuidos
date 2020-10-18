@@ -34,7 +34,7 @@ message PackageYGeo{
     string destino = 8;
 }
 
-message regCamion{
+message oldregCamion{
     string id_pkg = 1;
 	string tipo = 2;
 	int32 valor = 3;
@@ -42,6 +42,14 @@ message regCamion{
 	string destino = 5;
 	int32 num_intentos = 6;
 	string fecha_entrega = 7;
+}
+
+message RegCamion{
+    string id = 1;
+    string tipo = 2;
+    int32 valor = 3;
+    int32 intentos = 4;
+    string estado = 5;
 }
 
 message CodSeguimiento{
@@ -52,40 +60,29 @@ message EstadoPedido{
     string estado = 1;
 }
 
-message paquete{
+message InfoCam{
     string id = 1;
     string tipo = 2;
-    int32 valor = 3;
-    string origen = 4;
-    string destino = 5;
-    string intentos = 6;
+    bool numPeticion = 3;
 }
 
-message TipoCam{
-    string tipo = 1;
-    bool numPeticion = 2;
-}
-
-message paqRecibido{
-    string id = 1;
-    string tipo = 2;
-    int32 valor = 3;
-    int32 intentos = 4;
-    string estado = 5;
+message ACK{
+    string ok = 1;
 }
 
 
 service LogisService{
+    
     //servicios logistica a cliente
     rpc PedidoCliente(Pedido) returns (CodSeguimiento) {}
     rpc SeguimientoCliente(CodSeguimiento) returns (EstadoPedido) {}
 
-    rpc PedidoACamion(TipoCam) returns (PackageYGeo) {}
+    //solicitud de paquete de camión a logística
+    rpc PedidoACamion(InfoCam) returns (PackageYGeo) {}
 
     //servicios logistica a camion
-   // rpc SolPaquetes(tipoCam) returns (paquete){}
-   // rpc ResEntrega(paqRecibido) returns (orden_rec){}
-   // rpc UpdateEstado(EstadoPedido) returns (orden_rec){}
+    rpc ResEntrega(RegCamion) returns (ACK){}
+    //rpc UpdateEstado(EstadoPedido) returns (ACK){}
     
 }
 

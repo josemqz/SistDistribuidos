@@ -17,7 +17,7 @@ type server struct {
 }
 
 type RegPedido struct{
-	timestamp time.Time
+	timestamp string
 	id string
 	tipo string
 	nombre string
@@ -73,6 +73,9 @@ func failOnError(err error, msg string) {
 	}
 }
 
+//
+//------------------------ FINANCIERO ------------------------
+//
 /*
 func haciaFinanciero(pak financiero){
 	conn, err := amqp.Dial("amqp:/guest:guest@localhost:5672")
@@ -96,30 +99,164 @@ func haciaFinanciero(pak financiero){
 }
 */
 
+//
+//-------------------------- CAMIÓN --------------------------
+//
 
-func main() {
+//actualización de estado de paquetes al llegar camión a la Central
+func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.ACK, error){
+
+	//actualizar estados de paquetes en registro
+	for i := range RegistroSeguimiento{
+		if (pkg.Id == RegistroSeguimiento[i].id_pkg){
+
+			RegistroSeguimiento[i].estado_pkg = pkg.Estado
+			RegistroSeguimiento[i].num_intentos = pkg.Intentos
+			return &logis.ACK{Ok: "ok"}, nil
+		}
+	}
+
+	return &logis.ACK{Ok: "error"}, errors.New("No se encontró pedido en registro de seguimiento")
+
+	//enviar resultados económicos a financiero
+}
 
 
-	log.Println("Server running ...")
+func checkColasHelper(tipoCam string)(Package, bool){
 
+	if tipoCam == "normal"{
+		if len(PaquetesPri) > 0{
+			pkg := PaquetesPri[0]
+			PaquetesPri = PaquetesPri[1:]
+			return pkg, true
 
-//conexión clientes
-	listenCliente, err := net.Listen("tcp", ":50051")
-	failOnError(err, "error de conexion con cliente")
+		} else if len(PaquetesNormal) > 0{
+			pkg := PaquetesNormal[0]
+			PaquetesPri = PaquetesNormal[1:]
+			return pkg, true
+		}
+	} else {
+		if len(PaquetesRetail) > 0{
+			pkg := PaquetesRetail[0]
+			PaquetesPri = PaquetesRetail[1:]
+			return pkg, true
 
-//conexión camiones
-	listenCamion, err := net.Listen("tcp", ":50052")
-	failOnError(err, "error de conexion con cambiones")
-
-
-	srv := grpc.NewServer()
-	logis.RegisterLogisServiceServer(srv, &server{})
-
-	log.Fatalln(srv.Serve(listenCliente))
-	log.Fatalln(srv.Serve(listenCamion))
+		} else if len(PaquetesPri) > 0{
+			pkg := PaquetesPri[0]
+			PaquetesPri = PaquetesPri[1:]
+			return pkg, true
+		}
+	}
 	
-	//colas rabbitmq con financiero
+	return Package{}, false
+}
 
+
+//revisar colas mediante función auxiliar dependiendo del tipo de camión
+//que está solicitando y si es la primera o segunda peticióń de este
+func CheckColas(tipoCam string, numPeticion bool)(Package, bool){
+
+	var pkg Package
+	var flagPeticion bool
+
+	if !numPeticion{
+		pkg, flagPeticion = checkColasHelper(tipoCam)
+
+	} else{
+		//esperar hasta que llegue algo a prioritario y normal
+		for {
+			pkg, flagPeticion = checkColasHelper(tipoCam)
+			if pkg.id != "" {
+				break
+			}
+			
+			time.Sleep(5000 * time.Nanosecond)
+
+		}
+	}
+
+	return pkg, flagPeticion
+}
+
+
+//camión solicita un paquete
+func (s *server) PedidoACamion(ctx context.Context, tC *logis.InfoCam)(*logis.PackageYGeo, error){
+
+	tipoCam := tC.GetTipo()
+	idCam := tC.GetId()
+	
+	//numPeticion representa la primera o segunda petición de paquete del camión
+	//flagPeticion es si tiene exito en la búsqueda en las colas
+	numPeticion := tC.GetNumPeticion()
+	var flagPeticion = false
+
+	//server revisa en orden de prioridad las colas para saber qué paquete enviar
+	pkg, flagPeticion := CheckColas(tipoCam, numPeticion)
+	//meter condición de retail en caso de aceptar prioritario (haber enviado retails)
+
+	//no hay paquetes en colas luego del tiempo de espera del camión
+	if !numPeticion && !flagPeticion{
+		return &logis.PackageYGeo{}, nil
+	}
+
+
+	//obtener origen y destino del pedido
+	var orig string = ""
+	var dest string = ""
+
+	for i := range Registros{
+		if (Registros[i].id == pkg.id){
+			
+			orig = Registros[i].origen
+			dest = Registros[i].destino
+
+			break
+		}
+	}
+	
+	if orig == "" || len(orig) == 0{
+		err := errors.New("No se encontró paquete de cola en registro de pedidos")
+		return &logis.PackageYGeo{}, err
+	}
+	
+
+	//actualizar estado en registro seguimiento
+	for i := range RegistroSeguimiento{
+		if (RegistroSeguimiento[i].id_pkg == pkg.id){
+			RegistroSeguimiento[i].estado_pkg = "tr"
+			RegistroSeguimiento[i].id_camion = idCam
+			break
+		}
+	}
+
+	//generar mensaje a enviar a camión con datos
+	mensajePkg := &logis.PackageYGeo{Id: pkg.id,
+									NumSeguimiento: pkg.num_seguimiento,
+									Tipo: pkg.tipo,
+									Valor: pkg.valor,
+									NumIntentos: pkg.num_intentos,
+									Estado: "tr",
+									Origen: orig,
+									Destino: dest,
+	}
+
+	return mensajePkg, nil
+}
+
+
+//
+//-------------------------- CLIENTE --------------------------
+//
+
+//Cliente solicita estado de paquete
+func (s *server) SeguimientoCliente(ctx context.Context, cs *logis.CodSeguimiento) (*logis.EstadoPedido, error) {
+
+	for _, regseg := range RegistroSeguimiento{
+		if (cs.GetCodigo() == regseg.num_seguimiento){
+			return &logis.EstadoPedido{Estado: regseg.estado_pkg}, nil			
+		}
+	}
+	return &logis.EstadoPedido{Estado: "nulo"}, errors.New("No se encontró el paquete pedido en registro.")
 }
 
 
@@ -202,140 +339,27 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 }
 
 
-//Cliente solicita estado de paquete
-func (s *server) SeguimientoCliente(ctx context.Context, cs *logis.CodSeguimiento) (*logis.EstadoPedido, error) {
-
-	for _, regseg := range RegistroSeguimiento{
-		if (cs.GetCodigo() == regseg.num_seguimiento){
-			return &logis.EstadoPedido{Estado: regseg.estado_pkg}, nil			
-		}
-	}
-	return &logis.EstadoPedido{Estado: "nulo"}, errors.New("No se encontró el paquete pedido en registro.")
-}
+func main() {
 
 
+	log.Println("Server running ...")
 
-//camión solicita un paquete
-func (s *server) PedidoACamion(ctx context.Context, tC *logis.TipoCam)(*logis.PackageYGeo, error){
 
-	tipoCam := tC.GetTipo()
+//conexión clientes
+	listenCliente, err := net.Listen("tcp", ":50051")
+	failOnError(err, "error de conexion con cliente")
+
+//conexión camiones
+	listenCamion, err := net.Listen("tcp", ":50052")
+	failOnError(err, "error de conexion con cambiones")
+
+
+	srv := grpc.NewServer()
+	logis.RegisterLogisServiceServer(srv, &server{})
+
+	log.Fatalln(srv.Serve(listenCliente))
+	log.Fatalln(srv.Serve(listenCamion))
 	
-	//numPeticion representa la primera o segunda petición de paquete del camión
-	//flagPeticion es si tiene exito en la búsqueda en las colas
-	numPeticion := tC.GetNumPeticion()
-	var flagPeticion = false
+	//colas rabbitmq con financiero
 
-	//server revisa en orden de prioridad las colas para saber qué paquete enviar
-	pkg, flagPeticion := CheckColas(tipoCam, numPeticion)
-	//meter condición de retail en caso de aceptar prioritario (haber enviado retails)
-
-	//no hay paquetes en colas luego del tiempo de espera del camión
-	if !numPeticion && !flagPeticion{
-		return &logis.PackageYGeo{}, nil
-	}
-	
-	//obtener origen y destino del pedido
-	var orig string = ""
-	var dest string = ""
-	for i := range Registros{
-		if (Registros[i].id == pkg.id){
-			orig = Registros[i].origen
-			dest = Registros[i].destino
-
-			Registros[i].estado = "tr"  //actualiza estado a "En tránsito"
-			break
-		}
-	}
-	
-	if orig == "" || len(orig) == 0{
-		err := errors.New("No se encontró paquete de cola en registro de pedidos")
-		return &logis.PackageYGeo{}, err
-	}
-	
-	mensajePkg := &logis.PackageYGeo{Id: pkg.id,
-									NumSeguimiento: pkg.num_seguimiento,
-									Tipo: pkg.tipo,
-									Valor: pkg.valor,
-									NumIntentos: pkg.num_intentos,
-									Estado: pkg.estado,
-									Origen: orig,
-									Destino: dest,
-	}
-
-	return mensajePkg, nil
 }
-
-
-//revisar colas mediante función auxiliar dependiendo del tipo de camión
-//que está solicitando y si es la primera o segunda peticióń de este
-func CheckColas(tipoCam string, numPeticion bool)(Package, bool){
-
-	var pkg Package
-	var flagPeticion bool
-
-	if !numPeticion{
-		pkg, flagPeticion = checkColasHelper(tipoCam)
-
-	} else{
-		//esperar hasta que llegue algo a prioritario y normal
-		for {
-			pkg, flagPeticion = checkColasHelper(tipoCam)
-			if pkg.id != "" {
-				break
-			}
-			
-			time.Sleep(5000 * time.Nanosecond)
-
-		}
-	}
-
-	return pkg, flagPeticion
-}
-
-
-func checkColasHelper(tipoCam string)(Package, bool){
-
-	if tipoCam == "normal"{
-		if len(PaquetesPri) > 0{
-			pkg := PaquetesPri[0]
-			PaquetesPri = PaquetesPri[1:]
-			return pkg, true
-
-		} else if len(PaquetesNormal) > 0{
-			pkg := PaquetesNormal[0]
-			PaquetesPri = PaquetesNormal[1:]
-			return pkg, true
-		}
-	} else {
-		if len(PaquetesRetail) > 0{
-			pkg := PaquetesRetail[0]
-			PaquetesPri = PaquetesRetail[1:]
-			return pkg, true
-
-		} else if len(PaquetesPri) > 0{
-			pkg := PaquetesPri[0]
-			PaquetesPri = PaquetesPri[1:]
-			return pkg, true
-		}
-	}
-	
-	return Package{}, false
-}
-
-
-/*
-//actualización de estado de paquetes al llegar camión a la Central
-func (s *server) EstadoCamion(idCamion int32, dataPkg *logis.regCamion){
-
-	//actualizar estados de paquetes en registro
-	for i := range RegistroSeguimiento{
-		if (dataPkg.Id_pkg == RegistroSeguimiento[i].Id){
-			//condiciones para obtener estado de paquete
-			//cantidad de intentos y origen (retail o pyme)
-			RegistroSeguimiento[i].estado = dataPkg.
-		}
-	}
-
-	//enviar resultados económicos a financiero
-}
-*/
