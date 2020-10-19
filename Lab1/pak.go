@@ -1,7 +1,7 @@
 package main
 import(
-	//"log"
-	"amqp"
+	"log"
+	//"amqp"
 	//"fmt"
 	//"bufio"
 	//"reflect"
@@ -30,7 +30,7 @@ func main() {
 	read, _ := reader.ReadString('\n')
 	u, _ := strconv.Atoi(read)*/
 
-	/*
+	
 	type Package struct{
 		id string
 		num_seguimiento int32
@@ -46,9 +46,23 @@ func main() {
 	Paquetes = append(Paquetes, Package{id:"1"})
 	Paquetes = append(Paquetes, Package{id:"2"})
 	Paquetes = append(Paquetes, Package{id:"3"})
+	Paquetes = append(Paquetes, Package{id:"4"})
+	Paquetes = append(Paquetes, Package{id:"5"})
 	
-	log.Println(len(Paquetes)> 0)
-	*/
+	
+	for i := range(Paquetes){
+		log.Println(Paquetes[i])
+	}
+
+	Paquetes = Paquetes[1:]
+
+	for i := range(Paquetes){
+		log.Println(Paquetes[i])
+	}
+
+	//log.Println(len(Paquetes))
+
+	
 	
 	/*
 	log.Println("ingresa:")
@@ -67,26 +81,5 @@ func main() {
 */
 
 
-conn, err := amqp.Dial("amqp:/guest:guest@localhost:5672")
-failOnError(err, "error al conectar")
-defer conn.Close()
-
-ch,err := conn.Channel()
-failOnError(err, "error al abrir canal")
-defer ch.Close()
-
-
-q, err := ch.QueueDeclare(
-	"hello",
-	false,   
-	false,   
-	false,  
-	false,   
-	nil,    
-)
-_ = q
-failOnError(err,"error al enviar mensaje")
-
-}
 
 }

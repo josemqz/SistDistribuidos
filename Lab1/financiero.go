@@ -7,10 +7,11 @@ import (
 	"github.com/streadway/amqp"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/signal"
 	//"time"
 	//"bufio"
 	//"io"
-	//"os"
 )
 
 /*
@@ -47,6 +48,19 @@ var perdidas_f float64
 
 var completados []EnviosFinanzas
 var norecib []EnviosFinanzas
+
+
+
+func finSesion(){
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		log.Println("Balance total:", balance_t)
+		os.Exit(0)
+	}()
+}
+
 
 //recibe y convierte json desde logistico
 func convertjson(inf []byte) EnviosFinanzas{
@@ -109,12 +123,16 @@ func failOnError(err error, msg string) {
 
 
 
+
 func main(){
+
 	balance_t = 0
 	ganancias_f = 0
 	perdidas_f = 0
 
 	//log.Printf("...")
+
+	finSesion()
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
@@ -149,7 +167,9 @@ func main(){
 
 	go func() {
 		for d := range msgs {
+
 			log.Printf("Se ha recibido información")
+			
 			nuevo := convertjson(d.Body)
 			if(nuevo.Estado == "nr"){
 				norecib = append(norecib, nuevo)
@@ -172,5 +192,5 @@ func main(){
 	log.Printf(" [*] Esperando mensajes... Para salir CTRL+C")
 	<-forever
 
-log.Printf("El balance final es: %f dignipesos", balance_t)
+	log.Printf("El balance final es: %f dignipesos", balance_t)
 }

@@ -7,7 +7,7 @@ import (
 	"time"
 	"math"
 	"math/rand"
-	"os"
+	"sync"
 
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
@@ -43,6 +43,8 @@ var CentralCR1 = true
 var CentralCR2 = true
 var CentralCN = true
 
+var mutex = &sync.Mutex{}
+
 
 func failOnError(err error, msg string) {
 	if (err != nil) {
@@ -58,48 +60,64 @@ func actualizarReg(idCam string, id string, estado string, fecha string, intento
 
 	if idCam == "CR1"{
 
+		mutex.Lock()
 		CentralCR1 = true
+		mutex.Unlock()
 
 		for i = 0; i < len(RegistroCR1); i++{
 			if RegistroCR1[i].id_pkg == id{
 
+				mutex.Lock()
 				RegistroCR1[i].num_intentos = intento
 				RegistroCR1[i].fecha_entrega = fecha
+				mutex.Unlock()
+
 				return
 			}
 		}
-	} else if idCam == "CR2"{
 
+	} else if idCam == "CR2"{
+		
+		mutex.Lock()
 		CentralCR2 = true
+		mutex.Unlock()
 
 		for i = 0; i < len(RegistroCR2); i++{
 			if RegistroCR2[i].id_pkg == id{
 
+				mutex.Lock()
 				RegistroCR2[i].num_intentos = intento
 				RegistroCR2[i].fecha_entrega = fecha
+				mutex.Unlock()
+
 				return
 			}
 		}
-	} else if idCam == "CN"{
 
+	} else if idCam == "CN"{
+		
+		mutex.Lock()
 		CentralCN = true
+		mutex.Unlock()
 
 		for i = 0; i < len(RegistroCN); i++{
 			if RegistroCN[i].id_pkg == id{
 
+				mutex.Lock()
 				RegistroCN[i].num_intentos = intento
 				RegistroCN[i].fecha_entrega = fecha
+				mutex.Unlock()
+				
 				return
 			}
 		}
 	}
-
 }
 
 
 //Enviar estado actualizado a logística
 func EstadoCamion(idCam string, exito bool, reg RegPackage, camion logis.LogisServiceClient){
-	log.Println("funcion estadocamion")
+	log.Println("estado camion")
 
 	var estado string
 	if exito{
@@ -108,10 +126,8 @@ func EstadoCamion(idCam string, exito bool, reg RegPackage, camion logis.LogisSe
 		estado = "nr"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1000 * time.Second)
-	log.Println("1 timeout 1")
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()
-	log.Println("2 timeout 2")
 
 	r, err := camion.ResEntrega(ctx, &logis.RegCamion{Id: reg.id_pkg, Intentos: reg.num_intentos, Estado: estado})
 	failOnError(err, "Error en comunicación de actualización de pedido desde Camión")
@@ -149,14 +165,15 @@ func maxIntentos(reg RegPackage) int{
 
 //regA > regB
 func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.LogisServiceClient){
+	log.Println("función delivery")
 
 	//entrega exitosa o no
 	var estadoA = false
 	var estadoB = false
 
 	//cantidad de intentos
-	var tryA = 0
-	var tryB = 0
+	var tryA = 1
+	var tryB = 1
 
 	//cantidad máxima de intentos
 	var maxA = maxIntentos(regA)
@@ -295,21 +312,21 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 		tipoCam = "retail"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1000 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()
 
 	//pedir a logística un paquete
 	if idCam == "CR1" {
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: prevRetail1})
-		failOnError(err, "")
+		failOnError(err, "Error pidiendo paquete a logístico")
 
 	} else if idCam == "CR2"{
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: prevRetail2})
-		failOnError(err, "")
+		failOnError(err, "Error pidiendo paquete a logístico")
 
 	} else if idCam == "CN" {
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: false})
-		failOnError(err, "")
+		failOnError(err, "Error pidiendo paquete a logístico")
 	}
 
 
@@ -328,59 +345,60 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 						num_intentos: pedido.NumIntentos,
 	}
 
-	if idCam == "CR1" {
+
+	if idCam == "CR1"{
+		
+		mutex.Lock()
 		RegistroCR1 = append(RegistroCR1, reg)
+		mutex.Unlock()
+
 		log.Println("Pedido agregado a registro")
-	
-	} else if idCam == "CR2"{
+		
+		ap, err := os.OpenFile("Registro_Retail1.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+		failOnError(err, "Error al cargar registro retail 1")
+		defer ap.Close()
+		
+		if _, err := ap.WriteString(reg.id + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_intentos + "," + reg.fecha_entrega + "\n"); err != nil {
+			log.Println(err)
+		}
+	}
+
+	if idCam == "CR2"{
+
+		mutex.Lock()
 		RegistroCR2 = append(RegistroCR2, reg)
+		mutex.Unlock()
+
 		log.Println("Pedido agregado a registro")
 
-	} else if idCam == "CN" {
+		ap, err := os.OpenFile("Registro_Retail2.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+		failOnError(err, "Error al cargar registro retail 2")
+		defer ap.Close()
+		
+		if _, err := ap.WriteString(reg.id + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_intentos + "," + reg.fecha_entrega + "\n"); err != nil {
+			log.Println(err)
+		}
+	}
+
+	if idCam == "CN"{
+
+		mutex.Lock()
 		RegistroCN = append(RegistroCN, reg)
+		mutex.Unlock()
+
 		log.Println("Pedido agregado a registro")
+
+		ap, err := os.OpenFile("Registro_Normal.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+		failOnError(err, "Error al cargar registro camion normal")
+		defer ap.Close()
+		
+		if _, err := ap.WriteString(reg.id + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_intentos + "," + reg.fecha_entrega + "\n"); err != nil {
+			log.Println(err)
+		}
 	}
 
 	return reg
 }
-
-
-
-
-func RegPedido2(camion logis.LogisServiceClient, idCam string, numPeticion bool) (RegPackage){
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	pc, err := camion.PedidoACamion(ctx, &logis.IdCam{Id: idCam})
-	if err != nil {
-		log.Fatalf("No se pudo obtener paquete: %v", err)
-	}
-	var newPak RegPackage
-	if pc.GetId() != "" {
-		log.Printf("Paquete recibido")
-		newPak.id = pc.GetId()
-		newPak.tipo = pc.GetTipo()
-		newPak.valor = pc.GetValor()
-		newPak.origen = pc.GetOrigen()
-		newPak.destino = pc.GetDestino()
-		newPak.intentos = pc.GetIntentos()
-		newPak.estado = "Procesando"
-		newPak.fechaEntrega = ""
-
-		if idCam == "CR1"{
-			RegistroCR1 = append(RegistroCR1, newPak)
-			ap, err := os.OpenFile(""/*nombre csv retail 1*/, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
-			failOnError(err, "error al cargar registro retail1")
-			defer ap.Close()
-			if _, err := ap.WriteString(newPak.id + "," + newPak.tipo + "," + fmt.Sprint(newPak.valor) + "," + newPak.origen + "," + newPak.destino + "," + )
-			//faltaaaa
-		}
-}
-
-
-
-
 
 
 func initCamion(idCam string, camion logis.LogisServiceClient) (){
@@ -388,17 +406,17 @@ func initCamion(idCam string, camion logis.LogisServiceClient) (){
 	log.Println("Camión iniciado\n")
 
 	reg1 := RegistrarPedido(camion, idCam, true)
-	log.Println("Paquete 1 cargado en ", idCam, "\n")
+	log.Println("Paquete 1 cargado en", idCam, "\n")
 	
 	time.Sleep(time.Duration(pkg_time) * time.Second)
 	
 	reg2 := RegistrarPedido(camion, idCam, false)
 	if (reg2.id_pkg != ""){
-		log.Println("Paquete 2 cargado en ", idCam, "\n")
+		log.Println("Paquete 2 cargado en", idCam, "\n")
 	}
 
 	//si se envió retail la última vez
-	if (reg1.tipo == "retail") || (reg2.tipo != "retail"){
+	if (reg1.tipo == "retail") || (reg2.tipo == "retail"){
 		
 		if idCam == "CR1"{
 			prevRetail1 = true
@@ -453,18 +471,26 @@ func main(){
 
 	//instanciaciones
 	for {
+		mutex.Lock()
 		if CentralCR1{
 			CentralCR1 = false
 			go initCamion("CR1", camion)
 		}
+		mutex.Unlock()
+		mutex.Lock()
 		if CentralCR2{
 			CentralCR2 = false
 			go initCamion("CR2", camion)
 		}
+		mutex.Unlock()
+		
+		mutex.Lock()
 		if CentralCN{
 			CentralCN = false
 			go initCamion("CN", camion)
 		}
+		mutex.Unlock()
+		mutex.Unlock()
 	}
 
 }

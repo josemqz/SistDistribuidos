@@ -60,8 +60,8 @@ Instrucciones:
     $ go build -race -ldflags "-s -w" -o bin/server VM/serverVM.go
 	$ bin/server
 
-    $> go build -race -ldflags "-s -w" -o bin/cliente VM/clienteVM.go
-	$> bin/cliente
+    $ go build -race -ldflags "-s -w" -o bin/cliente VM/clienteVM.go
+	$ bin/cliente
 
     $ go build -race -ldflags "-s -w" -o bin/camion VM/camionVM.go
 	$ bin/camion
@@ -89,6 +89,10 @@ Instrucciones:
     contraseña:Kcf25KUB
 
 
+    Dirección Logístico
+    10.6.40.157
+
+
     Para errores VM:
 
     go get google.golang.org/protobuf/cmd/protoc-gen-go
@@ -102,7 +106,7 @@ Instrucciones:
     
     Pendientes:
 
-    ·Registros en csv (camiones, logístico)
+    ·Registros en csv (logístico)
     ·Camiones no realizan los pedidos 
         -> Logístico se queda revisando las colas, 
         pero hay muchos paquetes que no entrega a camiones

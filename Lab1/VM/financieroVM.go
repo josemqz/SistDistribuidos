@@ -7,11 +7,11 @@ import (
 	"github.com/streadway/amqp"
 	"encoding/json"
 	"fmt"
-
+	"os"
+	"os/signal"
 	//"time"
 	//"bufio"
 	//"io"
-	//"os"
 )
 
 /*
@@ -21,7 +21,7 @@ import (
 - Pérdidas o ganancias de cada paquete (en Dignipesos)-> se calcula en contador(paquete)
 */
 
-//Además mostrará el balance final en dignipesos durante la ejecución y al finalizar.
+//Además mostrará el balance final en dignipesos cuando termine su ejecución.
 
 
 
@@ -31,6 +31,7 @@ type EnviosFinanzas struct {
 	Tipo string `json:"tipo"`
 	Valor int32 `json:"valor"`
 	Intentos int32 `json:"intentos"`
+	//Date_of_delivery time.Time
 	Estado string `json:"estado"`
 	Balance float64
 
@@ -49,12 +50,35 @@ var completados []EnviosFinanzas
 var norecib []EnviosFinanzas
 
 
+
+func finSesion(){
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		log.Println("Balance total:", balance_t)
+		os.Exit(0)
+	}()
+}
+
+
+//recibe y convierte json desde logistico
+func convertjson(inf []byte) EnviosFinanzas{
+	var sstruc EnviosFinanzas
+
+	err := json.Unmarshal([]byte(inf), &sstruc)
+	if err != nil{
+		fmt.Println(err)
+	}
+	return sstruc
+}
+
 //calcula perdidas y ganancias segun tipo de envío
 func contador(pak EnviosFinanzas){
 
 	balance_producto = 0
 	if(pak.Tipo == "retail"){
-		balance_producto = float64(pak.Valor) - float64(10*(pak.Intentos-1)) 
+		balance_producto = float64(pak.Valor) - float64(10*(pak.Intentos -1)) 
 		ganancias = float64(pak.Valor)
 		perdidas = float64(10*(pak.Intentos-1))
 	}else if(pak.Tipo == "prioritario"){
@@ -81,19 +105,13 @@ func contador(pak EnviosFinanzas){
 }
 
 
-//recibe y convierte json desde logistico
-func convertjson(inf []byte) EnviosFinanzas{
-	var sstruc EnviosFinanzas
 
-	err := json.Unmarshal([]byte(inf), &sstruc)
-	if err != nil{
-		fmt.Println(err)
-	}
-	return sstruc
-}
 
+//cantidad entregados
 
 //cantidad no entregados
+
+
 
 
 func failOnError(err error, msg string) {
@@ -104,19 +122,24 @@ func failOnError(err error, msg string) {
 
 
 
+
+
 func main(){
+
 	balance_t = 0
 	ganancias_f = 0
 	perdidas_f = 0
 
 	//log.Printf("...")
 
+	finSesion()
+
 	conn, err := amqp.Dial("amqp://birmania:birmania@10.6.40.157:5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
 	ch, err := conn.Channel()
-	failOnError(err, "fallo al abrir el cananl")
+	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
@@ -127,7 +150,7 @@ func main(){
 		false,
 		nil,
 	)
-	failOnError(err, "fallo al declarar la cola")
+	failOnError(err, "Failed to declare a queue")
 
 	msgs, err := ch.Consume(
 		q.Name,
@@ -138,13 +161,15 @@ func main(){
 		false,
 		nil,
 	)
-	failOnError(err, "fallo al consumir datos")
+	failOnError(err, "Failed to register a consumer")
 
 	forever := make(chan bool)
 
 	go func() {
 		for d := range msgs {
-			log.Printf("Recibiendo informacion...")
+
+			log.Printf("Se ha recibido información")
+			
 			nuevo := convertjson(d.Body)
 			if(nuevo.Estado == "nr"){
 				norecib = append(norecib, nuevo)
@@ -161,9 +186,11 @@ func main(){
 		}
 	}()
 
+	log.Printf("El balance final es: %f dignipesos", balance_t)
+
 	  
-	log.Printf("Esperando mensajes... Para salir CTRL+C")
+	log.Printf(" [*] Esperando mensajes... Para salir CTRL+C")
 	<-forever
 
-log.Printf("El balance final es: %f dignipesos", balance_t)
+	log.Printf("El balance final es: %f dignipesos", balance_t)
 }

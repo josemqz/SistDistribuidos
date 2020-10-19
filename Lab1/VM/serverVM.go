@@ -7,6 +7,7 @@ import (
 	"time"
 	"errors"
 	"encoding/json"
+	"sync"
 	
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
@@ -67,6 +68,7 @@ var PaquetesNormal []Package
 var Registros = []RegPedido{}
 var RegistroSeguimiento = []PackageSeguimiento{}
 
+var mutex = &sync.Mutex{}
 
 func failOnError(err error, msg string) {
 	if (err != nil) {
@@ -117,17 +119,25 @@ func paqueteFinanciero(i int){
 	
 	var pakfi financiero
 	var j = 0
+
+	mutex.Lock()
 	pakfi.Id = RegistroSeguimiento[i].id_pkg
 	pakfi.Estado = RegistroSeguimiento[i].estado_pkg
 	pakfi.Intentos = RegistroSeguimiento[i].num_intentos
+	
+	for (j < len(Registros)){
 
-	for j < len(Registros){
-		if RegistroSeguimiento[i].id_pkg == Registros[j].id{
+		if (RegistroSeguimiento[i].id_pkg == Registros[j].id){
+			
 			pakfi.Valor = Registros[j].valor
 			pakfi.Tipo = Registros[i].tipo
+
 			break
 		}
 	}
+	mutex.Unlock()
+
+
 	haciaFinanciero(pakfi)
 }
 
@@ -139,18 +149,21 @@ func paqueteFinanciero(i int){
 func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.ACK, error){
 
 	//actualizar estados de paquetes en registro
+	mutex.Lock()
 	for i := range RegistroSeguimiento{
 		if (pkg.Id == RegistroSeguimiento[i].id_pkg){
 
 			RegistroSeguimiento[i].estado_pkg = pkg.Estado
 			RegistroSeguimiento[i].num_intentos = pkg.Intentos
-
+			mutex.Unlock()
+			
 			paqueteFinanciero(i)
 
 			return &logis.ACK{Ok: "ok"}, nil
 		}
 	}
-	
+
+	mutex.Unlock()
 	return &logis.ACK{Ok: "error"}, errors.New("No se encontró pedido en registro de seguimiento")
 }
 
@@ -158,28 +171,38 @@ func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.A
 func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 
 	if tipoCam == "normal"{
+		log.Println("wi soy un camion normal revisando la cola prioritaria y normal")
+		mutex.Lock()
 		if len(PaquetesPri) > 0{
-			
+
+			log.Println("la cola prioritaria tiene largo", len(PaquetesPri))
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
+			mutex.Unlock()
 
 			log.Println("Cargando paquete prioritario...")
 			return pkg, true
 
 		} else if len(PaquetesNormal) > 0{
-
+			
 			pkg := PaquetesNormal[0]
 			PaquetesNormal = PaquetesNormal[1:]
+			mutex.Unlock()
 			
 			log.Println("Cargando paquete normal...")
 			return pkg, true
 		}
+		mutex.Unlock()
 	
 	} else {
+		
+		mutex.Lock()
 		if len(PaquetesRetail) > 0{
 
+			mutex.Lock()
 			pkg := PaquetesRetail[0]
 			PaquetesRetail = PaquetesRetail[1:]
+			mutex.Unlock()
 			
 			log.Println("Cargando paquete de retail...")
 			return pkg, true
@@ -191,8 +214,10 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 			PaquetesPri = PaquetesPri[1:]
 			
 			log.Println("Cargando paquete prioritario...")
+			mutex.Unlock()
 			return pkg, true
 		}
+		mutex.Unlock()
 	}
 	
 	return Package{}, false
@@ -218,8 +243,8 @@ func CheckColas(tipoCam string, numPeticion bool, prevRetail bool)(Package, bool
 				break
 			}
 			//CHECK <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-			time.Sleep(5 * time.Millisecond)
-			log.Println("Esperando que hayan paquetes en colas...\n")
+			time.Sleep(50 * time.Millisecond)
+			//log.Println("Esperando que hayan paquetes en colas...\n")
 
 		}
 	}
@@ -252,16 +277,18 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.InfoCam)(*logis.Pa
 	//obtener origen y destino del pedido
 	var orig string = ""
 	var dest string = ""
-
+	
+	mutex.Lock()
 	for i := range Registros{
 		if (Registros[i].id == pkg.id){
 			
 			orig = Registros[i].origen
 			dest = Registros[i].destino
-
+			
 			break
 		}
 	}
+	mutex.Unlock()
 	
 	if orig == "" || len(orig) == 0{
 		err := errors.New("No se encontró paquete de cola en registro de pedidos")
@@ -270,14 +297,18 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.InfoCam)(*logis.Pa
 	
 
 	//actualizar estado en registro seguimiento
+	mutex.Lock()
 	for i := range RegistroSeguimiento{
 		if (RegistroSeguimiento[i].id_pkg == pkg.id){
+			
 			RegistroSeguimiento[i].estado_pkg = "tr"
 			RegistroSeguimiento[i].id_camion = idCam
+			
 			break
 		}
 	}
-
+	mutex.Unlock()
+	
 	//generar mensaje a enviar a camión con datos
 	mensajePkg := &logis.PackageYGeo{Id: pkg.id,
 									NumSeguimiento: pkg.num_seguimiento,
@@ -299,12 +330,16 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.InfoCam)(*logis.Pa
 
 //Cliente solicita estado de paquete
 func (s *server) SeguimientoCliente(ctx context.Context, cs *logis.CodSeguimiento) (*logis.EstadoPedido, error) {
-
+	
+	mutex.Lock()
 	for _, regseg := range RegistroSeguimiento{
 		if (cs.GetCodigo() == regseg.num_seguimiento){
+			mutex.Unlock()
 			return &logis.EstadoPedido{Estado: regseg.estado_pkg}, nil			
 		}
 	}
+
+	mutex.Unlock()
 	return &logis.EstadoPedido{Estado: "nulo"}, errors.New("No se encontró el paquete pedido en registro.")
 }
 
@@ -314,11 +349,14 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	log.Print("Pedido recibido")
 
 	//auxiliar para guardar valor de cod_tracking
+	mutex.Lock()
 	help_cod_tracking := cod_tracking
+	mutex.Unlock()
 	var tipoP string
 
 	//se escoge tipo de paquete
 	if (pedido.Tienda == "pyme"){
+
 		if (pedido.Prioritario == 0){
 			tipoP = "normal" 
 		} else if (pedido.Prioritario == 1){
@@ -326,8 +364,11 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 		}
 
 	} else {
+
 		tipoP = "retail"
+		mutex.Lock()
 		cod_tracking = int32(0)
+		mutex.Unlock()
 	}
 
 
@@ -336,6 +377,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	var pVal = pedido.Valor
 
 	//guardar en registro
+	mutex.Lock()
 	Registros = append(Registros, RegPedido{timestamp:nownow.Format("2006-01-02 15:04:05"), 
 											id:pId, 
 											tipo: tipoP, 
@@ -343,52 +385,71 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 											valor: pVal, 
 											origen: pedido.Tienda, 
 											destino: pedido.Destino, 
-											num_seguimiento: cod_tracking,
-	})
+											num_seguimiento: cod_tracking})
+	mutex.Unlock()
 
 	//guardar en registro de seguimiento
+	mutex.Lock()
 	RegistroSeguimiento = append(RegistroSeguimiento, PackageSeguimiento{id_pkg: pId,
 														estado_pkg: "bdg",
 														id_camion: "",
 														num_seguimiento: cod_tracking,
-														num_intentos: 0,
-	})
+														num_intentos: 0})
+	mutex.Unlock()
 	
 	//transformar pedido en paquete
+	mutex.Lock()
 	pkg := Package{id: pId,
 					num_seguimiento: cod_tracking,
 					tipo: tipoP,
 					valor: pVal,
 					num_intentos: 0,
 					estado: "bdg"}
-
+	mutex.Unlock()
+					
 
 	//guardar paquete en cola
 	if (tipoP == "normal") {
+
+		mutex.Lock()
 		PaquetesNormal = append(PaquetesNormal, pkg)
+		
 		log.Println("Paquete ingresado a cola normal\n")
 		
 		log.Println("largo PaquetesNormal:", len(PaquetesNormal))
+		mutex.Unlock()
 
 
 	} else if (tipoP == "prioritario") {
+
+		mutex.Lock()
 		PaquetesPri = append(PaquetesPri, pkg)
+		
 		log.Println("Paquete ingresado a cola prioritaria\n")
 		
 		log.Println("largo PaquetesPri:", len(PaquetesPri))
-	
+		mutex.Unlock()
+		
 	} else {
+
+		mutex.Lock()
 		PaquetesRetail = append(PaquetesRetail, pkg)
+		
 		log.Println("Paquete ingresado a cola de retail\n")
 		
 		log.Println("largo PaquetesRetail:", len(PaquetesRetail))
+		mutex.Unlock()
 	}
 
 	//se vuelve al valor original del codigo de seguimiento
+	mutex.Lock()
 	cod_tracking = help_cod_tracking
+	mutex.Unlock()
 
 	if (tipoP != "retail"){
+		mutex.Lock()
 		cod_tracking += 1
+		mutex.Unlock()
 	}
 
 	return &logis.CodSeguimiento{Codigo: cod_tracking}, nil
@@ -425,5 +486,4 @@ func main() {
 	
 	go ConectarCamion()
 	ConectarCliente()
-
 }
