@@ -123,19 +123,20 @@ func paqueteFinanciero(i int){
 	pakfi.Id = RegistroSeguimiento[i].id_pkg
 	pakfi.Estado = RegistroSeguimiento[i].estado_pkg
 	pakfi.Intentos = RegistroSeguimiento[i].num_intentos
-	mutex.Unlock()
 
-	for j < len(Registros){
+	for (j < len(Registros){
 		if RegistroSeguimiento[i].id_pkg == Registros[j].id{
 			
 			mutex.Lock()
 			pakfi.Valor = Registros[j].valor
 			pakfi.Tipo = Registros[i].tipo
 			mutex.Unlock()
-			
+
 			break
 		}
 	}
+	mutex.Unlock()
+
 
 	haciaFinanciero(pakfi)
 }
@@ -169,10 +170,10 @@ func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.A
 func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 
 	if tipoCam == "normal"{
-
+		
+		mutex.Lock()
 		if len(PaquetesPri) > 0{
 			
-			mutex.Lock()
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
 			mutex.Unlock()
@@ -182,7 +183,6 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 
 		} else if len(PaquetesNormal) > 0{
 			
-			mutex.Lock()
 			pkg := PaquetesNormal[0]
 			PaquetesNormal = PaquetesNormal[1:]
 			mutex.Unlock()
@@ -190,9 +190,11 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 			log.Println("Cargando paquete normal...")
 			return pkg, true
 		}
+		mutex.Unlock()
 	
 	} else {
-
+		
+		mutex.Lock()
 		if len(PaquetesRetail) > 0{
 
 			mutex.Lock()
@@ -206,14 +208,14 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 		// condicion en caso de haber hecho recien un envio de retail
 		} else if (len(PaquetesPri) > 0) && prevRetail{ 
 
-			mutex.Lock()
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
-			mutex.Unlock()
 			
 			log.Println("Cargando paquete prioritario...")
+			mutex.Unlock()
 			return pkg, true
 		}
+		mutex.Unlock()
 	}
 	
 	return Package{}, false
@@ -339,7 +341,9 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	log.Print("Pedido recibido")
 
 	//auxiliar para guardar valor de cod_tracking
+	mutex.Lock()
 	help_cod_tracking := cod_tracking
+	mutex.Unlock()
 	var tipoP string
 
 	//se escoge tipo de paquete
@@ -373,7 +377,9 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 											valor: pVal, 
 											origen: pedido.Tienda, 
 											destino: pedido.Destino, 
+											mutex.Lock()
 											num_seguimiento: cod_tracking,
+											mutex.Unlock()
 	})
 	mutex.Unlock()
 
@@ -382,14 +388,18 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	RegistroSeguimiento = append(RegistroSeguimiento, PackageSeguimiento{id_pkg: pId,
 														estado_pkg: "bdg",
 														id_camion: "",
+														mutex.Lock()
 														num_seguimiento: cod_tracking,
+														mutex.Unlock()
 														num_intentos: 0,
 	})
 	mutex.Unlock()
 	
 	//transformar pedido en paquete
 	pkg := Package{id: pId,
+					mutex.Lock()
 					num_seguimiento: cod_tracking,
+					mutex.Unlock()
 					tipo: tipoP,
 					valor: pVal,
 					num_intentos: 0,
@@ -398,30 +408,46 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 
 	//guardar paquete en cola
 	if (tipoP == "normal") {
+
+		mutex.Lock()
 		PaquetesNormal = append(PaquetesNormal, pkg)
+		mutex.Unlock()
+
 		log.Println("Paquete ingresado a cola normal\n")
 		
 		log.Println("largo PaquetesNormal:", len(PaquetesNormal))
 
 
 	} else if (tipoP == "prioritario") {
+
+		mutex.Lock()
 		PaquetesPri = append(PaquetesPri, pkg)
+		mutex.Unlock()
+
 		log.Println("Paquete ingresado a cola prioritaria\n")
 		
 		log.Println("largo PaquetesPri:", len(PaquetesPri))
 	
 	} else {
+
+		mutex.Lock()
 		PaquetesRetail = append(PaquetesRetail, pkg)
+		mutex.Unlock()
+
 		log.Println("Paquete ingresado a cola de retail\n")
 		
 		log.Println("largo PaquetesRetail:", len(PaquetesRetail))
 	}
 
 	//se vuelve al valor original del codigo de seguimiento
+	mutex.Lock()
 	cod_tracking = help_cod_tracking
+	mutex.Unlock()
 
 	if (tipoP != "retail"){
+		mutex.Lock()
 		cod_tracking += 1
+		mutex.Unlock()
 	}
 
 	return &logis.CodSeguimiento{Codigo: cod_tracking}, nil
