@@ -49,13 +49,13 @@ var mutex = &sync.Mutex{}
 
 func failOnError(err error, msg string) {
 	if (err != nil) {
-		log.Fatalf("%s: %s", msg, err)
+		log.Fatalf("%s: %s\n", msg, err)
 	}
 }
 
 
 //Actualizar registro de camión
-func actualizarReg(idCam string, id string, estado string, fecha string, intento int32) {
+func actualizarReg(idCam string, id string, fecha string, intento int32) {
 
 	var i int
 
@@ -64,18 +64,35 @@ func actualizarReg(idCam string, id string, estado string, fecha string, intento
 		mutex.Lock()
 		CentralCR1 = true
 		mutex.Unlock()
+		
+		//ingresar estado actualizado a registro csv
+		ap, err := os.OpenFile("Registro_Retail1.csv", os.O_APPEND|os.O_WRONLY, 0777)
+		failOnError(err, "Error al abrir registro retail 1")
+		defer ap.Close()
 
-		for i = 0; i < len(RegistroCR1); i++{
+		mutex.Lock()
+		lR := len(RegistroCR1)
+		mutex.Unlock()
+		for i = 0; i < lR; i++{
+
+			mutex.Lock()
 			if RegistroCR1[i].id_pkg == id{
+				
+				reg := RegistroCR1[i]
 
-				mutex.Lock()
+				if _, err := ap.WriteString(reg.id_pkg + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(intento) + "," + fecha + "\n"); err != nil {
+					log.Println(err)
+				}
+				
 				RegistroCR1[i].num_intentos = intento
 				RegistroCR1[i].fecha_entrega = fecha
 				mutex.Unlock()
 
 				return
 			}
+			mutex.Unlock()
 		}
+
 
 	} else if idCam == "CR2"{
 		
@@ -83,17 +100,34 @@ func actualizarReg(idCam string, id string, estado string, fecha string, intento
 		CentralCR2 = true
 		mutex.Unlock()
 
-		for i = 0; i < len(RegistroCR2); i++{
+		//ingresar estado actualizado a registro csv
+		ap, err := os.OpenFile("Registro_Retail2.csv", os.O_APPEND|os.O_WRONLY, 0777)
+		failOnError(err, "Error al abrir registro retail 2")
+		defer ap.Close()
+
+		mutex.Lock()
+		lR := len(RegistroCR2)
+		mutex.Unlock()
+		for i = 0; i < lR; i++{
+			
+			mutex.Lock()
 			if RegistroCR2[i].id_pkg == id{
 
-				mutex.Lock()
+				reg := RegistroCR2[i]
+
+				if _, err := ap.WriteString(reg.id_pkg + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(intento) + "," + fecha + "\n"); err != nil {
+					log.Println(err)
+				}
+
 				RegistroCR2[i].num_intentos = intento
 				RegistroCR2[i].fecha_entrega = fecha
 				mutex.Unlock()
 
 				return
 			}
+			mutex.Unlock()
 		}
+
 
 	} else if idCam == "CN"{
 		
@@ -101,16 +135,32 @@ func actualizarReg(idCam string, id string, estado string, fecha string, intento
 		CentralCN = true
 		mutex.Unlock()
 
-		for i = 0; i < len(RegistroCN); i++{
+		//ingresar estado actualizado a registro csv
+		ap, err := os.OpenFile("Registro_Normal.csv", os.O_APPEND|os.O_WRONLY, 0777)
+		failOnError(err, "Error al abrir registro normal")
+		defer ap.Close()
+
+		mutex.Lock()
+		lR := len(RegistroCN)
+		mutex.Unlock()
+		for i = 0; i < lR; i++{
+
+			mutex.Lock()
 			if RegistroCN[i].id_pkg == id{
 
-				mutex.Lock()
+				reg := RegistroCN[i]
+
+				if _, err := ap.WriteString(reg.id_pkg + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(intento) + "," + fecha + "\n"); err != nil {
+					log.Println(err)
+				}
+
 				RegistroCN[i].num_intentos = intento
 				RegistroCN[i].fecha_entrega = fecha
 				mutex.Unlock()
 				
 				return
 			}
+			mutex.Unlock()
 		}
 	}
 }
@@ -118,7 +168,6 @@ func actualizarReg(idCam string, id string, estado string, fecha string, intento
 
 //Enviar estado actualizado a logística
 func EstadoCamion(idCam string, exito bool, reg RegPackage, camion logis.LogisServiceClient){
-	log.Println("estado camion")
 
 	var estado string
 	if exito{
@@ -127,7 +176,7 @@ func EstadoCamion(idCam string, exito bool, reg RegPackage, camion logis.LogisSe
 		estado = "nr"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20 * time.Second)
 	defer cancel()
 
 	r, err := camion.ResEntrega(ctx, &logis.RegCamion{Id: reg.id_pkg, Intentos: reg.num_intentos, Estado: estado})
@@ -135,7 +184,7 @@ func EstadoCamion(idCam string, exito bool, reg RegPackage, camion logis.LogisSe
 
 	log.Printf("ok camion->logistico: %v", r.GetOk())
 
-	actualizarReg(idCam, reg.id_pkg, estado, reg.fecha_entrega, reg.num_intentos)
+	actualizarReg(idCam, reg.id_pkg, reg.fecha_entrega, reg.num_intentos)
 }
 
 
@@ -166,7 +215,6 @@ func maxIntentos(reg RegPackage) int{
 
 //regA > regB
 func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.LogisServiceClient){
-	log.Println("función delivery")
 
 	//entrega exitosa o no
 	var estadoA = false
@@ -183,7 +231,9 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 
 	//solo una entrega
 	if (regB.id_pkg == ""){
-		for (tryA <= maxA) && !estadoA{
+		for (tryA < maxA) && !estadoA{
+			
+			log.Println("Se está intentando enviar un solo paquete :3")
 			
 			time.Sleep(time.Duration(dlvr_time) * time.Second)
 
@@ -202,7 +252,7 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 		}
 
 		//se pasó de maxA y no fue entregado
-		if (tryA > maxA){
+		if (tryA >= maxA){
 			
 			regA.fecha_entrega = "0"
 			regA.num_intentos = int32(tryA)
@@ -214,9 +264,11 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 	//dos entregas
 	} else {
 		
-		for (!estadoA && tryA <= maxA) && (!estadoB && tryB <= maxB){	//CHECK
+		for (!estadoA && tryA <= maxA) || (!estadoB && tryB <= maxB){	//CHECK
 			
-			if !estadoA && (tryA <= maxA){
+			log.Println("Se están intentando enviar dos paquetes :3")
+			
+			if !estadoA && (tryA < maxA){
 
 				time.Sleep(time.Duration(dlvr_time) * time.Second)
 
@@ -234,7 +286,7 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 				}
 			}
 
-			if (tryA > maxA){
+			if (tryA >= maxA){
 				
 				regA.fecha_entrega = "0"
 				regA.num_intentos = int32(tryA)
@@ -243,7 +295,7 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 			}
 			
 
-			if !estadoB && (tryB <= maxB){
+			if !estadoB && (tryB < maxB){
 
 				time.Sleep(time.Duration(dlvr_time) * time.Second)
 				
@@ -261,7 +313,7 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 				}
 			}
 
-			if (tryB > maxB){
+			if (tryB >= maxB){
 
 				regB.fecha_entrega = "0"
 				regB.num_intentos = int32(tryB)
@@ -277,7 +329,7 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 func OrdenP(idCam string, reg1 RegPackage, reg2 RegPackage, camion logis.LogisServiceClient){
 
 	//si hay un segundo paquete y su valor es mayor
-	if (reg2.id_pkg != "") && (reg1.valor < reg2.valor) {
+	if (reg2.id_pkg != "") || (reg1.valor < reg2.valor) {
 		Delivery(idCam, reg2, reg1, camion)
 
 	} else {
@@ -286,21 +338,9 @@ func OrdenP(idCam string, reg1 RegPackage, reg2 RegPackage, camion logis.LogisSe
 }
 
 
-//reintento: 10 dp
-	//pyme: si <= precio producto + [30% en caso de prioritario] || n_intento <= 3
-	//retail: n_intento <= 3
-
-//si paquetes no son entregados:
-	//normal: nada
-	//prioritario: 30%
-	//retail: precio producto
-
-
-
-//se pide un paquete y se guarda en el registro. numPeticion representa si es
-//la primera (true) o segunda vez (false) que se pide, para saber si logístico debe esperar
-func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion bool) (RegPackage){
-	log.Println("funcion: registrarpedido\n")
+//se pide un paquete y se guarda en el registro. 
+//numPeticion representa si es la primera o segunda vez que se pide
+func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion int32) (RegPackage){
 
 	var tipoCam string
 	var pedido *logis.PackageYGeo
@@ -313,26 +353,26 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 		tipoCam = "retail"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1000 * time.Second)
 	defer cancel()
 
 	//pedir a logística un paquete
 	if idCam == "CR1" {
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: prevRetail1})
-		failOnError(err, "Error pidiendo paquete a logístico")
+		failOnError(err, "Error pidiendo paquete a logístico (" + idCam + ")")
 
 	} else if idCam == "CR2"{
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: prevRetail2})
-		failOnError(err, "Error pidiendo paquete a logístico")
+		failOnError(err, "Error pidiendo paquete a logístico (" + idCam + ")")
 
 	} else if idCam == "CN" {
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: false})
-		failOnError(err, "Error pidiendo paquete a logístico")
+		failOnError(err, "Error pidiendo paquete a logístico (" + idCam + ")")
 	}
 
 
 	//si segunda petición de paquete no fue exitosa se retorna nil y ya uwu
-	if (!numPeticion && pedido == &logis.PackageYGeo{}){
+	if (numPeticion == 2 && pedido == &logis.PackageYGeo{}){
 		log.Println("No hay más paquetes. Iniciando viaje con uno solo...")
 		return RegPackage{}
 	}
@@ -344,7 +384,7 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 						origen: pedido.Origen,
 						destino: pedido.Destino,
 						num_intentos: pedido.NumIntentos,
-	}
+						fecha_entrega: "0"}
 
 
 	if idCam == "CR1"{
@@ -355,7 +395,7 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 
 		log.Println("Pedido agregado a registro")
 		
-		ap, err := os.OpenFile("Registro_Retail1.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+		ap, err := os.OpenFile("Registro_Retail1.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		failOnError(err, "Error al cargar registro retail 1")
 		defer ap.Close()
 		
@@ -372,7 +412,7 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 
 		log.Println("Pedido agregado a registro")
 
-		ap, err := os.OpenFile("Registro_Retail2.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+		ap, err := os.OpenFile("Registro_Retail2.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		failOnError(err, "Error al cargar registro retail 2")
 		defer ap.Close()
 		
@@ -389,7 +429,7 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 
 		log.Println("Pedido agregado a registro")
 
-		ap, err := os.OpenFile("Registro_Normal.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+		ap, err := os.OpenFile("Registro_Normal.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		failOnError(err, "Error al cargar registro camion normal")
 		defer ap.Close()
 		
@@ -406,12 +446,12 @@ func initCamion(idCam string, camion logis.LogisServiceClient) (){
 
 	log.Println("Camión iniciado\n")
 
-	reg1 := RegistrarPedido(camion, idCam, true)
+	reg1 := RegistrarPedido(camion, idCam, int32(1))
 	log.Println("Paquete 1 cargado en", idCam, "\n")
 	
 	time.Sleep(time.Duration(pkg_time) * time.Second)
 	
-	reg2 := RegistrarPedido(camion, idCam, false)
+	reg2 := RegistrarPedido(camion, idCam, int32(2))
 	if (reg2.id_pkg != ""){
 		log.Println("Paquete 2 cargado en", idCam, "\n")
 	}
@@ -434,6 +474,8 @@ func initCamion(idCam string, camion logis.LogisServiceClient) (){
 
 func main(){
 	
+	//crear archivos y escribir columnas
+
 	//pedir tiempo de espera entre pedidos por input
 	fmt.Print("Ingresar tiempo de espera entre pedidos de camiones: ")
 

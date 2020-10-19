@@ -63,7 +63,7 @@ message EstadoPedido{
 message InfoCam{
     string id = 1;
     string tipo = 2;
-    bool numPeticion = 3;
+    int32 numPeticion = 3;
     bool prevRetail = 4;
 }
 

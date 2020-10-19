@@ -182,7 +182,7 @@ func enviarPedidos(tipoT string, records [][]string, client_var logis.LogisServi
 
 		log.Println("Pedido: ", request)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 	
 		response, err := client_var.PedidoCliente(ctx, request)

@@ -72,7 +72,7 @@ var mutex = &sync.Mutex{}
 
 func failOnError(err error, msg string) {
 	if (err != nil) {
-		log.Fatalf("%s: %s", msg, err)
+		log.Fatalf("%s: %s\n", msg, err)
 	}
 }
 
@@ -125,17 +125,22 @@ func paqueteFinanciero(i int){
 	pakfi.Estado = RegistroSeguimiento[i].estado_pkg
 	pakfi.Intentos = RegistroSeguimiento[i].num_intentos
 	
-	for (j < len(Registros)){
+	lR := len(Registros)
+	mutex.Unlock()
 
+	for j = 0; j < lR; j += 1{
+
+		mutex.Lock()
 		if (RegistroSeguimiento[i].id_pkg == Registros[j].id){
 			
 			pakfi.Valor = Registros[j].valor
 			pakfi.Tipo = Registros[i].tipo
+			mutex.Unlock()
 
 			break
 		}
+		mutex.Unlock()
 	}
-	mutex.Unlock()
 
 
 	haciaFinanciero(pakfi)
@@ -149,8 +154,14 @@ func paqueteFinanciero(i int){
 func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.ACK, error){
 
 	//actualizar estados de paquetes en registro
+	var i int
 	mutex.Lock()
-	for i := range RegistroSeguimiento{
+	lRS := len(RegistroSeguimiento)
+	mutex.Unlock()
+
+	for i = 0; i < lRS; i++{
+		
+		mutex.Lock()
 		if (pkg.Id == RegistroSeguimiento[i].id_pkg){
 
 			RegistroSeguimiento[i].estado_pkg = pkg.Estado
@@ -161,9 +172,10 @@ func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.A
 
 			return &logis.ACK{Ok: "ok"}, nil
 		}
+		mutex.Unlock()
+
 	}
 
-	mutex.Unlock()
 	return &logis.ACK{Ok: "error"}, errors.New("No se encontró pedido en registro de seguimiento")
 }
 
@@ -171,11 +183,13 @@ func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.A
 func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 
 	if tipoCam == "normal"{
-		log.Println("wi soy un camion normal revisando la cola prioritaria y normal")
-		mutex.Lock()
-		if len(PaquetesPri) > 0{
 
-			log.Println("la cola prioritaria tiene largo", len(PaquetesPri))
+		mutex.Lock()
+		lp := len(PaquetesPri)
+		ln := len(PaquetesNormal)
+		
+		if (lp > 0){
+			
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
 			mutex.Unlock()
@@ -183,7 +197,7 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 			log.Println("Cargando paquete prioritario...")
 			return pkg, true
 
-		} else if len(PaquetesNormal) > 0{
+		} else if (ln > 0){
 			
 			pkg := PaquetesNormal[0]
 			PaquetesNormal = PaquetesNormal[1:]
@@ -197,9 +211,11 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 	} else {
 		
 		mutex.Lock()
-		if len(PaquetesRetail) > 0{
+		lp := len(PaquetesPri)
+		lr := len(PaquetesRetail)
 
-			mutex.Lock()
+		if (lr > 0){
+
 			pkg := PaquetesRetail[0]
 			PaquetesRetail = PaquetesRetail[1:]
 			mutex.Unlock()
@@ -208,13 +224,13 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 			return pkg, true
 		
 		// condicion en caso de haber hecho recien un envio de retail
-		} else if (len(PaquetesPri) > 0) && prevRetail{ 
-
+		} else if (lp > 0) && prevRetail{ 
+			
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
+			mutex.Unlock()
 			
 			log.Println("Cargando paquete prioritario...")
-			mutex.Unlock()
 			return pkg, true
 		}
 		mutex.Unlock()
@@ -226,29 +242,30 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 
 //revisar colas mediante función auxiliar dependiendo del tipo de camión
 //que está solicitando y si es la primera o segunda peticióń de este
-func CheckColas(tipoCam string, numPeticion bool, prevRetail bool)(Package, bool){
+func CheckColas(tipoCam string, numPeticion int32, prevRetail bool)(Package, bool){
 
 	var pkg Package
-	var flagPeticion bool
+	var flagPeticion = false
 
-	if !numPeticion{
+	if (numPeticion == 2) {
 		pkg, flagPeticion = checkColasHelper(tipoCam, prevRetail)
 
 	} else{
-		//esperar hasta que llegue algo a prioritario y normal
-		for {
-			pkg, flagPeticion = checkColasHelper(tipoCam, prevRetail)
-			if pkg.id != "" {
-				log.Println("Paquete encontrado en cola ", pkg.tipo, "\n")
-				break
-			}
-			//CHECK <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-			time.Sleep(50 * time.Millisecond)
-			//log.Println("Esperando que hayan paquetes en colas...\n")
 
+		//esperar hasta que llegue algo a prioritario y normal
+		for (pkg.id == "") || !flagPeticion{
+
+			log.Println("algun camion", tipoCam, "está en un ciclo, más vale que no salga")
+			
+			pkg, flagPeticion = checkColasHelper(tipoCam, prevRetail)
+			
+			time.Sleep(5 * time.Second)
 		}
+
+		log.Println("\nPaquete encontrado en cola de tipo", pkg.tipo)
 	}
 
+	log.Println("algun camión", tipoCam, "obtuvo", pkg, flagPeticion, "\n")
 	return pkg, flagPeticion
 }
 
@@ -265,11 +282,14 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.InfoCam)(*logis.Pa
 	numPeticion := tC.GetNumPeticion()
 	var flagPeticion = false
 
+
 	//server revisa en orden de prioridad las colas para saber qué paquete enviar
+	//deberia quedarse esperando en caso de ser el primer envío y que no haya nada
 	pkg, flagPeticion := CheckColas(tipoCam, numPeticion, prevRetail)
+	
 
 	//no hay paquetes en colas luego del tiempo de espera del camión
-	if !numPeticion && !flagPeticion{
+	if ((numPeticion == 2) && !flagPeticion) {
 		return &logis.PackageYGeo{}, nil
 	}
 
@@ -290,7 +310,8 @@ func (s *server) PedidoACamion(ctx context.Context, tC *logis.InfoCam)(*logis.Pa
 	}
 	mutex.Unlock()
 	
-	if orig == "" || len(orig) == 0{
+	if (orig == "") || (len(orig) == 0){
+		log.Println("origen está vacío, porque de seguro ALGUIEN dejó salir algún camión de un loop supuestamente infinito >:c")
 		err := errors.New("No se encontró paquete de cola en registro de pedidos")
 		return &logis.PackageYGeo{}, err
 	}
@@ -351,7 +372,6 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	//auxiliar para guardar valor de cod_tracking
 	mutex.Lock()
 	help_cod_tracking := cod_tracking
-	mutex.Unlock()
 	var tipoP string
 
 	//se escoge tipo de paquete
@@ -364,11 +384,8 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 		}
 
 	} else {
-
 		tipoP = "retail"
-		mutex.Lock()
-		cod_tracking = int32(0)
-		mutex.Unlock()
+		cod_tracking = 0
 	}
 
 
@@ -377,7 +394,6 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	var pVal = pedido.Valor
 
 	//guardar en registro
-	mutex.Lock()
 	Registros = append(Registros, RegPedido{timestamp:nownow.Format("2006-01-02 15:04:05"), 
 											id:pId, 
 											tipo: tipoP, 
@@ -386,19 +402,15 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 											origen: pedido.Tienda, 
 											destino: pedido.Destino, 
 											num_seguimiento: cod_tracking})
-	mutex.Unlock()
 
 	//guardar en registro de seguimiento
-	mutex.Lock()
 	RegistroSeguimiento = append(RegistroSeguimiento, PackageSeguimiento{id_pkg: pId,
 														estado_pkg: "bdg",
 														id_camion: "",
 														num_seguimiento: cod_tracking,
 														num_intentos: 0})
-	mutex.Unlock()
 	
 	//transformar pedido en paquete
-	mutex.Lock()
 	pkg := Package{id: pId,
 					num_seguimiento: cod_tracking,
 					tipo: tipoP,
@@ -407,7 +419,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 					estado: "bdg"}
 	mutex.Unlock()
 					
-
+	
 	//guardar paquete en cola
 	if (tipoP == "normal") {
 
@@ -486,4 +498,5 @@ func main() {
 	
 	go ConectarCamion()
 	ConectarCliente()
+
 }

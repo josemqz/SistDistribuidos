@@ -70,7 +70,7 @@ Instrucciones:
 	$ bin/financiero
 
 
-    DATOS MV:
+    DATOS VM:
 
     Máquina Server/Logística
     hostname:dist17
@@ -102,14 +102,3 @@ Instrucciones:
     export GO111MODULE=on  # Enable module mode
     $ go get github.com/golang/protobuf/protoc-gen-go \
          google.golang.org/grpc/cmd/protoc-gen-go-grpc
-
-    
-    Pendientes:
-
-    ·Registros en csv (logístico)
-    ·Camiones no realizan los pedidos 
-        -> Logístico se queda revisando las colas, 
-        pero hay muchos paquetes que no entrega a camiones
-        -> estados finales incorrectos
-    ·Financiero no imprime balance final
-    ·acceso a variables de parte tanto de camiones como de clientes (colas de paquetes)
