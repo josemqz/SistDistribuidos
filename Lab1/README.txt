@@ -15,6 +15,12 @@ Supuestos e información útil:
         - MV 19: Cliente
         - MV 20: Camiones
 
+    ·Las variables de estado de paquetes son 
+        bdg: bodega
+        tr: en tránsito
+        rec: recibido
+        nr: no recibido
+
     ·Si tienda es de tipo pyme, necesariamente dirá "pyme" en columna tienda en pymes.csv
 
     ·En la pauta se usan los términos "número de intentos" y de "reintentos", y se interpretó
@@ -23,14 +29,14 @@ Supuestos e información útil:
 
     ·No se considera el 30% del valor de los paquetes prioritarios al escoger el orden de entrega
 
-    ·Las variables de estado de paquetes son 
-        bdg: bodega
-        tr: en tránsito
-        rec: recibido
-        nr: no recibido
+    ·En los registros de camiones se realiza "append" de los datos actualizados de cada pedido, 
+    por lo que cada ID aparece dos veces.
 
 
 Instrucciones:
+
+    Una vez abierta la termnal ejecutar:
+    $ cd SistDistribuidos/Lab1
 
     Ejecutar en terminal:
 
@@ -52,7 +58,7 @@ Instrucciones:
     $ go build -race -ldflags "-s -w" -o bin/camion Camiones/camion.go
 	$ bin/camion
 
-    $ go build -race -ldflags "-s -w" -o bin/financiero financiero.go
+    $ go build -race -ldflags "-s -w" -o bin/financiero Financiero/financiero.go
 	$ bin/financiero
 
 
@@ -70,7 +76,7 @@ Instrucciones:
 	$ bin/financiero
 
 
-    DATOS VM:
+DATOS VM:
 
     Máquina Server/Logística
     hostname:dist17
@@ -89,11 +95,11 @@ Instrucciones:
     contraseña:Kcf25KUB
 
 
-    Dirección Logístico
+Dirección Logístico
     10.6.40.157
 
 
-    Para errores VM:
+Para errores VM:
 
     go get google.golang.org/protobuf/cmd/protoc-gen-go
     go get google.golang.org/grpc
