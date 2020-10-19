@@ -7,6 +7,7 @@ import (
 	"time"
 	"math"
 	"math/rand"
+	"os"
 
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
@@ -342,6 +343,44 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 
 	return reg
 }
+
+
+
+
+func RegPedido2(camion logis.LogisServiceClient, idCam string, numPeticion bool) (RegPackage){
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	pc, err := camion.PedidoACamion(ctx, &logis.IdCam{Id: idCam})
+	if err != nil {
+		log.Fatalf("No se pudo obtener paquete: %v", err)
+	}
+	var newPak RegPackage
+	if pc.GetId() != "" {
+		log.Printf("Paquete recibido")
+		newPak.id = pc.GetId()
+		newPak.tipo = pc.GetTipo()
+		newPak.valor = pc.GetValor()
+		newPak.origen = pc.GetOrigen()
+		newPak.destino = pc.GetDestino()
+		newPak.intentos = pc.GetIntentos()
+		newPak.estado = "Procesando"
+		newPak.fechaEntrega = ""
+
+		if idCam == "CR1"{
+			RegistroCR1 = append(RegistroCR1, newPak)
+			ap, err := os.OpenFile(""/*nombre csv retail 1*/, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+			failOnError(err, "error al cargar registro retail1")
+			defer ap.Close()
+			if _, err := ap.WriteString(newPak.id + "," + newPak.tipo + "," + fmt.Sprint(newPak.valor) + "," + newPak.origen + "," + newPak.destino + "," + )
+			//faltaaaa
+		}
+}
+
+
+
+
 
 
 func initCamion(idCam string, camion logis.LogisServiceClient) (){

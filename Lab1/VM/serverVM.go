@@ -6,9 +6,7 @@ import (
 	"net"
 	"time"
 	"errors"
-	//"amqp"
 	"encoding/json"
-	//"strconv"
 	
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
@@ -152,11 +150,8 @@ func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.A
 			return &logis.ACK{Ok: "ok"}, nil
 		}
 	}
-
-
 	
 	return &logis.ACK{Ok: "error"}, errors.New("No se encontró pedido en registro de seguimiento")
-
 }
 
 
@@ -164,29 +159,37 @@ func checkColasHelper(tipoCam string, prevRetail bool)(Package, bool){
 
 	if tipoCam == "normal"{
 		if len(PaquetesPri) > 0{
+			
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
+
 			log.Println("Cargando paquete prioritario...")
 			return pkg, true
 
 		} else if len(PaquetesNormal) > 0{
+
 			pkg := PaquetesNormal[0]
 			PaquetesNormal = PaquetesNormal[1:]
+			
 			log.Println("Cargando paquete normal...")
 			return pkg, true
 		}
 	
 	} else {
 		if len(PaquetesRetail) > 0{
+
 			pkg := PaquetesRetail[0]
 			PaquetesRetail = PaquetesRetail[1:]
+			
 			log.Println("Cargando paquete de retail...")
 			return pkg, true
 		
 		// condicion en caso de haber hecho recien un envio de retail
 		} else if (len(PaquetesPri) > 0) && prevRetail{ 
+
 			pkg := PaquetesPri[0]
 			PaquetesPri = PaquetesPri[1:]
+			
 			log.Println("Cargando paquete prioritario...")
 			return pkg, true
 		}
@@ -211,10 +214,11 @@ func CheckColas(tipoCam string, numPeticion bool, prevRetail bool)(Package, bool
 		for {
 			pkg, flagPeticion = checkColasHelper(tipoCam, prevRetail)
 			if pkg.id != "" {
+				log.Println("Paquete encontrado en cola ", pkg.tipo, "\n")
 				break
 			}
-			
-			time.Sleep(2 * time.Second)
+			//CHECK <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+			time.Sleep(5 * time.Millisecond)
 			log.Println("Esperando que hayan paquetes en colas...\n")
 
 		}
@@ -363,14 +367,21 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	if (tipoP == "normal") {
 		PaquetesNormal = append(PaquetesNormal, pkg)
 		log.Println("Paquete ingresado a cola normal\n")
+		
+		log.Println("largo PaquetesNormal:", len(PaquetesNormal))
+
 
 	} else if (tipoP == "prioritario") {
 		PaquetesPri = append(PaquetesPri, pkg)
 		log.Println("Paquete ingresado a cola prioritaria\n")
+		
+		log.Println("largo PaquetesPri:", len(PaquetesPri))
 	
 	} else {
 		PaquetesRetail = append(PaquetesRetail, pkg)
 		log.Println("Paquete ingresado a cola de retail\n")
+		
+		log.Println("largo PaquetesRetail:", len(PaquetesRetail))
 	}
 
 	//se vuelve al valor original del codigo de seguimiento

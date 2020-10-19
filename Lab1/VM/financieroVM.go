@@ -7,6 +7,7 @@ import (
 	"github.com/streadway/amqp"
 	"encoding/json"
 	"fmt"
+
 	//"time"
 	//"bufio"
 	//"io"
@@ -30,7 +31,6 @@ type EnviosFinanzas struct {
 	Tipo string `json:"tipo"`
 	Valor int32 `json:"valor"`
 	Intentos int32 `json:"intentos"`
-	//Date_of_delivery time.Time
 	Estado string `json:"estado"`
 	Balance float64
 
@@ -48,23 +48,13 @@ var perdidas_f float64
 var completados []EnviosFinanzas
 var norecib []EnviosFinanzas
 
-//recibe y convierte json desde logistico
-func convertjson(inf []byte) EnviosFinanzas{
-	var sstruc EnviosFinanzas
-
-	err := json.Unmarshal([]byte(inf), &sstruc)
-	if err != nil{
-		fmt.Println(err)
-	}
-	return sstruc
-}
 
 //calcula perdidas y ganancias segun tipo de envío
 func contador(pak EnviosFinanzas){
 
 	balance_producto = 0
 	if(pak.Tipo == "retail"){
-		balance_producto = float64(pak.Valor) - float64(10*(pak.Intentos -1)) 
+		balance_producto = float64(pak.Valor) - float64(10*(pak.Intentos-1)) 
 		ganancias = float64(pak.Valor)
 		perdidas = float64(10*(pak.Intentos-1))
 	}else if(pak.Tipo == "prioritario"){
@@ -91,12 +81,19 @@ func contador(pak EnviosFinanzas){
 }
 
 
+//recibe y convierte json desde logistico
+func convertjson(inf []byte) EnviosFinanzas{
+	var sstruc EnviosFinanzas
 
+	err := json.Unmarshal([]byte(inf), &sstruc)
+	if err != nil{
+		fmt.Println(err)
+	}
+	return sstruc
+}
 
-//cantidad entregados
 
 //cantidad no entregados
-
 
 
 func failOnError(err error, msg string) {
@@ -119,7 +116,7 @@ func main(){
 	defer conn.Close()
 
 	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
+	failOnError(err, "fallo al abrir el cananl")
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
@@ -130,7 +127,7 @@ func main(){
 		false,
 		nil,
 	)
-	failOnError(err, "Failed to declare a queue")
+	failOnError(err, "fallo al declarar la cola")
 
 	msgs, err := ch.Consume(
 		q.Name,
@@ -141,13 +138,13 @@ func main(){
 		false,
 		nil,
 	)
-	failOnError(err, "Failed to register a consumer")
+	failOnError(err, "fallo al consumir datos")
 
 	forever := make(chan bool)
 
 	go func() {
 		for d := range msgs {
-			log.Printf("Se ha recibido información")
+			log.Printf("Recibiendo informacion...")
 			nuevo := convertjson(d.Body)
 			if(nuevo.Estado == "nr"){
 				norecib = append(norecib, nuevo)
@@ -163,8 +160,6 @@ func main(){
 
 		}
 	}()
-
-	log.Printf("El balance final es: %f dignipesos", balance_t)
 
 	  
 	log.Printf("Esperando mensajes... Para salir CTRL+C")

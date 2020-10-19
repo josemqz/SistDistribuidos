@@ -44,19 +44,19 @@ func obtenerPaquete(coss logis.LogisServiceClient, tipoCam string, idCam string)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := coss.SolPaquetes(ctx, &logis.TipoCam{Tipo: tipoCam})
+	pc, err := coss.SolPaquetes(ctx, &logis.TipoCam{Tipo: tipoCam})
 	if err != nil {
 		log.Fatalf("No se pudo obtener paquete: %v", err)
 	}
 	var newPak paquete
-	if r.GetId() != "null" {
+	if pc.GetId() != "" {
 		log.Printf("Paquete recibido")
-		newPak.id = r.GetId()
-		newPak.tipo = r.GetTipo()
-		newPak.valor = r.GetValor()
-		newPak.origen = r.GetOrigen()
-		newPak.destino = r.GetDestino()
-		newPak.intentos = r.GetIntentos()
+		newPak.id = pc.GetId()
+		newPak.tipo = pc.GetTipo()
+		newPak.valor = pc.GetValor()
+		newPak.origen = pc.GetOrigen()
+		newPak.destino = pc.GetDestino()
+		newPak.intentos = pc.GetIntentos()
 		newPak.estado = "Procesando"
 		newPak.fechaEntrega = ""
 
