@@ -12,6 +12,9 @@ import (
 
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
+
+	//"bufio"
+	//"io"
 )
 
 //preguntar si en memoria o csv
@@ -355,21 +358,15 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 
 	//pedir a logística un paquete
 	if idCam == "CR1" {
-		mutex.Lock()
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: prevRetail1})
-		mutex.Unlock()
 		failOnError(err, "Error pidiendo paquete a logístico (" + idCam + ")")
 
 	} else if idCam == "CR2"{
-		mutex.Lock()
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: prevRetail2})
-		mutex.Unlock()
 		failOnError(err, "Error pidiendo paquete a logístico (" + idCam + ")")
 
 	} else if idCam == "CN" {
-		mutex.Lock()
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: false})
-		mutex.Unlock()
 		failOnError(err, "Error pidiendo paquete a logístico (" + idCam + ")")
 	}
 
@@ -513,8 +510,8 @@ func main(){
 
 
 	//conexión
-	conn, err := grpc.Dial("10.6.40.157:50055", grpc.WithInsecure(), grpc.WithBlock())
-	//conn, err := grpc.Dial("localhost:50055", grpc.WithInsecure(), grpc.WithBlock())
+	//conn, err := grpc.Dial("10.6.40.157:50055", grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial("localhost:50055", grpc.WithInsecure(), grpc.WithBlock())
 	failOnError(err,"Error en conexión a servidor")
 	defer conn.Close()
 

@@ -70,11 +70,26 @@ var RegistroSeguimiento = []PackageSeguimiento{}
 
 var mutex = &sync.Mutex{}
 
+
 func failOnError(err error, msg string) {
 	if (err != nil) {
 		log.Fatalf("%s: %s\n", msg, err)
 	}
 }
+
+//escribir en csv
+func csvData(reg RegPedido) {
+
+	ap, err := os.OpenFile("registro_logistica.csv", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Println(err)
+	}
+	defer ap.Close()
+	if _, err := ap.WriteString(reg.timestamp + "," + reg.id + "," + reg.tipo + "," + reg.nombre + + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_seguimiento) + "\n"); err != nil {
+		log.Println(err)
+	}
+}
+
 
 //
 //------------------------ FINANCIERO ------------------------
@@ -400,14 +415,19 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 	var pVal = pedido.Valor
 
 	//guardar en registro
-	Registros = append(Registros, RegPedido{timestamp:nownow.Format("2006-01-02 15:04:05"), 
-											id:pId, 
-											tipo: tipoP, 
-											nombre: pedido.Producto, 
-											valor: pVal, 
-											origen: pedido.Tienda, 
-											destino: pedido.Destino, 
-											num_seguimiento: cod_tracking})
+	reg := RegPedido{timestamp:nownow.Format("2006-01-02 15:04:05"), 
+					id:pId, 
+					tipo: tipoP, 
+					nombre: pedido.Producto, 
+					valor: pVal, 
+					origen: pedido.Tienda, 
+					destino: pedido.Destino, 
+					num_seguimiento: cod_tracking})
+
+	Registros = append(Registros, reg)
+
+	//guardar en registro csv
+	csvData(reg)
 
 	//guardar en registro de seguimiento
 	RegistroSeguimiento = append(RegistroSeguimiento, PackageSeguimiento{id_pkg: pId,
@@ -423,6 +443,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 					valor: pVal,
 					num_intentos: 0,
 					estado: "bdg"}
+
 	mutex.Unlock()
 					
 	
@@ -474,6 +495,9 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 }
 
 
+//
+//------------------------ CONEXIONES ------------------------
+//
 func ConectarCliente(){
 
 	listenCliente, err := net.Listen("tcp", "10.6.40.157:50051")

@@ -19,6 +19,94 @@ import (
 var usr_time int
 
 
+
+
+
+func failOnError(err error, msg string) {
+	if (err != nil) {
+	  log.Fatalf("%s: %s", msg, err)
+	}
+}
+
+
+func leercsv(arch string) ([][]string){
+	
+	csv_arch, err := os.Open(arch)
+	failOnError(err, "Error abriendo archivo csv")
+	defer csv_arch.Close()
+	
+	// Skip first row (line)
+	row1, err := bufio.NewReader(csv_arch).ReadSlice('\n')
+	failOnError(err, "Error interpretando csv (lectura primera línea)")
+
+	_, err = csv_arch.Seek(int64(len(row1)), io.SeekStart)
+	failOnError(err, "Error interpretando csv (lectura primera línea)")
+	
+	r := csv.NewReader(csv_arch)
+	records, err := r.ReadAll()
+	failOnError(err, "Error interpretando archivo csv")
+	
+	csv_arch.Close()
+	log.Println("csv leído")
+
+	return records
+}
+
+
+func doSeguimiento(client_var logis.LogisServiceClient, cod int32) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	//request a logístico
+	seguimientoPkg := &logis.CodSeguimiento{Codigo: cod + 1}
+	estado_pkg, err := client_var.SeguimientoCliente(ctx, seguimientoPkg)
+	
+	failOnError(err, "Error de seguimiento de pedido")
+
+	
+	log.Println("Estado de pedido: " + estado_pkg.GetEstado())
+}
+
+
+func enviarPedidos(tipoT string, records [][]string, client_var logis.LogisServiceClient){
+
+	log.Println("funcion: enviarPedidos")
+
+	//se realiza cada pedido
+	for _, rec := range records{
+
+		valorHelp, _ := strconv.Atoi(rec[2])
+		
+		request := &logis.Pedido{
+			Id: rec[0],
+			Producto: rec[1],
+			Valor: int32(valorHelp),
+			Tienda: rec[3],
+			Destino: rec[4],
+		}
+
+		if (tipoT == "pyme"){
+			priorHelp, _ := strconv.Atoi(rec[5])
+			request.Prioritario = int32(priorHelp)
+		}
+
+		log.Println("Pedido: ", request)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+	
+		response, err := client_var.PedidoCliente(ctx, request)
+		failOnError(err, "Error enviando pedido al servidor")		
+	
+		cod_seguimiento := response.GetCodigo()
+		log.Println("Pedido realizado\nCodigo de seguimiento: ", cod_seguimiento, "\n")
+		
+		time.Sleep(time.Duration(usr_time) * time.Second)
+	}
+}
+
+
 func main() {
 	
 	log.Print("Ingresar tiempo de espera entre pedidos: ")
@@ -66,6 +154,7 @@ func main() {
 
 	cliente := logis.NewLogisServiceClient(conn)
 
+	//enviar pedidos
 	if (opcion == 1){
 
 		var tipoT int = 1
@@ -105,6 +194,7 @@ func main() {
 			enviarPedidos("retail", records_retail, cliente)
 		}
 	
+	//hacer seguimiento
 	} else if (opcion == 2){
 		
 		var cod int32
@@ -124,91 +214,4 @@ func main() {
 
 		doSeguimiento(cliente, cod)
 	}
-
-}
-
-
-func failOnError(err error, msg string) {
-	if (err != nil) {
-	  log.Fatalf("%s: %s", msg, err)
-	}
-}
-
-
-func leercsv(arch string) ([][]string){
-	
-	csv_arch, err := os.Open(arch)
-	failOnError(err, "Error abriendo archivo csv")
-	defer csv_arch.Close()
-	
-	// Skip first row (line)
-	row1, err := bufio.NewReader(csv_arch).ReadSlice('\n')
-	failOnError(err, "Error interpretando csv (lectura primera línea)")
-
-	_, err = csv_arch.Seek(int64(len(row1)), io.SeekStart)
-	failOnError(err, "Error interpretando csv (lectura primera línea)")
-	
-	r := csv.NewReader(csv_arch)
-	records, err := r.ReadAll()
-	failOnError(err, "Error interpretando archivo csv")
-	
-	csv_arch.Close()
-	log.Println("csv leído")
-
-	return records
-}
-
-
-func enviarPedidos(tipoT string, records [][]string, client_var logis.LogisServiceClient){
-
-	log.Println("funcion: enviarPedidos")
-
-	//se realiza cada pedido
-	for _, rec := range records{
-
-		valorHelp, _ := strconv.Atoi(rec[2])
-		
-		request := &logis.Pedido{
-			Id: rec[0],
-			Producto: rec[1],
-			Valor: int32(valorHelp),
-			Tienda: rec[3],
-			Destino: rec[4],
-		}
-
-		if (tipoT == "pyme"){
-			priorHelp, _ := strconv.Atoi(rec[5])
-			request.Prioritario = int32(priorHelp)
-		}
-
-		log.Println("Pedido: ", request)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-		defer cancel()
-	
-		response, err := client_var.PedidoCliente(ctx, request)
-		failOnError(err, "Error enviando pedido al servidor")		
-	
-		cod_seguimiento := response.GetCodigo()
-		log.Println("Pedido realizado\nCodigo de seguimiento: ", cod_seguimiento, "\n")
-		
-		//wait
-		time.Sleep(time.Duration(usr_time) * time.Second)
-	}
-}
-
-
-func doSeguimiento(client_var logis.LogisServiceClient, cod int32) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	seguimientoPkg := &logis.CodSeguimiento{Codigo: cod}
-
-	estado_pkg, err := client_var.SeguimientoCliente(ctx, seguimientoPkg)
-	
-	failOnError(err, "Error de seguimiento de pedido")
-
-	
-	log.Println("Estado de pedido: " + estado_pkg.GetEstado())
 }
