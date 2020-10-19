@@ -8,7 +8,8 @@ import (
 	"errors"
 	//"amqp"
 	"encoding/json"
-	"strconv"
+	//"strconv"
+	
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
 	"github.com/streadway/amqp"
@@ -80,7 +81,7 @@ func failOnError(err error, msg string) {
 //
 
 func haciaFinanciero(pak financiero){
-	conn, err := amqp.Dial("amqp:/guest:guest@localhost:5672")
+	conn, err := amqp.Dial("amqp://:guest@localhost:5672")
 	failOnError(err, "error al conectar")
 	defer conn.Close()
 
@@ -213,7 +214,7 @@ func CheckColas(tipoCam string, numPeticion bool, prevRetail bool)(Package, bool
 				break
 			}
 			
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 			log.Println("Esperando que hayan paquetes en colas...\n")
 
 		}
@@ -322,7 +323,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 
 	} else {
 		tipoP = "retail"
-		cod_tracking = 0
+		cod_tracking = int32(0)
 	}
 
 

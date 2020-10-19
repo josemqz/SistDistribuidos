@@ -189,7 +189,7 @@ func CheckColas(tipoCam string, numPeticion bool, prevRetail bool)(Package, bool
 				break
 			}
 			
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 			log.Println("Esperando que hayan paquetes en colas...\n")
 
 		}
@@ -298,7 +298,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 
 	} else {
 		tipoP = "retail"
-		cod_tracking = 0
+		cod_tracking = int32(0)
 	}
 
 

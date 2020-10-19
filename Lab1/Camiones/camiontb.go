@@ -98,7 +98,8 @@ func actualizarReg(idCam string, id string, estado string, fecha string, intento
 
 //Enviar estado actualizado a logística
 func EstadoCamion(idCam string, exito bool, reg RegPackage, camion logis.LogisServiceClient){
-	
+	log.Println("funcion estadocamion")
+
 	var estado string
 	if exito{
 		estado = "rec"
@@ -106,8 +107,10 @@ func EstadoCamion(idCam string, exito bool, reg RegPackage, camion logis.LogisSe
 		estado = "nr"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1000 * time.Second)
+	log.Println("1 timeout 1")
 	defer cancel()
+	log.Println("2 timeout 2")
 
 	r, err := camion.ResEntrega(ctx, &logis.RegCamion{Id: reg.id_pkg, Intentos: reg.num_intentos, Estado: estado})
 	failOnError(err, "Error en comunicación de actualización de pedido desde Camión")
@@ -291,7 +294,7 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 		tipoCam = "retail"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1000 * time.Second)
 	defer cancel()
 
 	//pedir a logística un paquete
