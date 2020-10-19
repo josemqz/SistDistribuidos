@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"sync"
+	"os"
 
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
@@ -358,7 +359,7 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 		failOnError(err, "Error al cargar registro retail 1")
 		defer ap.Close()
 		
-		if _, err := ap.WriteString(reg.id + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_intentos + "," + reg.fecha_entrega + "\n"); err != nil {
+		if _, err := ap.WriteString(reg.id_pkg + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_intentos) + "," + fmt.Sprint(reg.fecha_entrega) + "\n"); err != nil {
 			log.Println(err)
 		}
 	}
@@ -375,7 +376,7 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 		failOnError(err, "Error al cargar registro retail 2")
 		defer ap.Close()
 		
-		if _, err := ap.WriteString(reg.id + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_intentos + "," + reg.fecha_entrega + "\n"); err != nil {
+		if _, err := ap.WriteString(reg.id_pkg + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_intentos) + "," + fmt.Sprint(reg.fecha_entrega) + "\n"); err != nil {
 			log.Println(err)
 		}
 	}
@@ -392,7 +393,7 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 		failOnError(err, "Error al cargar registro camion normal")
 		defer ap.Close()
 		
-		if _, err := ap.WriteString(reg.id + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_intentos + "," + reg.fecha_entrega + "\n"); err != nil {
+		if _, err := ap.WriteString(reg.id_pkg + "," + reg.tipo + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_intentos) + "," + fmt.Sprint(reg.fecha_entrega) + "\n"); err != nil {
 			log.Println(err)
 		}
 	}
