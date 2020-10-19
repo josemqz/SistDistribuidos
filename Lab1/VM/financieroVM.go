@@ -1,4 +1,3 @@
-//financiero
 package main
 
 import (
@@ -9,6 +8,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
+	"sync"
+)
 /*
 - Los envı́os completados -> se guardan en completados[]
 - La cantidad de veces que se intentó entregar un paquete -> paquete.intentos
@@ -17,7 +19,6 @@ import (
 */
 
 //Además mostrará el balance final en dignipesos cuando termine su ejecución.
-
 
 
 
@@ -72,7 +73,7 @@ func finSesion(){
 		<-c
 
 		mutex.Lock()
-		log.Println("Balance total:", balance_t)
+		log.Printf("El balance final es: %f dignipesos", balance_t)
 		mutex.Unlock()
 
 		ap, err := os.OpenFile("registro_financiero.csv", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
@@ -153,6 +154,7 @@ func main(){
 	finSesion()
 
 	conn, err := amqp.Dial("amqp://birmania:birmania@10.6.40.157:5672/")
+	//conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	failOnError(err, "Error de conexion")
 	defer conn.Close()
 
@@ -199,24 +201,21 @@ func main(){
 			}
 			contador(nuevo)
 			nuevo.Balance = balance_p
+			
+			mutex.Lock()
 			ganancias_t += ganancia_p
 			perdidas_t += perdidas_p
 			csvData(nuevo)
 			
-			mutex.Lock()
 			completados = append(completados, nuevo)
-			mutex.Unlock()
-
 			balance_t += balance_p
+			mutex.Unlock()
 			
+			i += 1
 		}
 	}()
-
-	log.Printf("El balance final es: %f dignipesos", balance_t)
-
 	  
 	log.Printf(" [*] Esperando mensajes... Para salir CTRL+C")
 	<-forever
 
-	log.Printf("El balance final es: %f dignipesos", balance_t)
 }

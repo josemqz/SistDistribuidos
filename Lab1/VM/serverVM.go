@@ -81,7 +81,8 @@ func failOnError(err error, msg string) {
 //
 
 func haciaFinanciero(pak financiero){
-	conn, err := amqp.Dial("amqp://birmania:birmania@10.6.40.157:5672")
+	//conn, err := amqp.Dial("amqp://birmania:birmania@10.6.40.157:5672")
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672")
 	failOnError(err, "error al conectar")
 	defer conn.Close()
 
@@ -169,8 +170,13 @@ func (s *server) ResEntrega(ctx context.Context, pkg *logis.RegCamion) (*logis.A
 			mutex.Unlock()
 			
 			paqueteFinanciero(i)
+			
+			if pkg.Estado == "rec"{
+				return &logis.ACK{Ok: "ok"}, nil
+			} else {
+				return &logis.ACK{Ok: "ok (pero pedido no entregado jaja)"}, nil
+			}
 
-			return &logis.ACK{Ok: "ok"}, nil
 		}
 		mutex.Unlock()
 
@@ -471,6 +477,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 func ConectarCliente(){
 
 	listenCliente, err := net.Listen("tcp", "10.6.40.157:50051")
+	//listenCliente, err := net.Listen("tcp", "localhost:50051")
 	failOnError(err, "error de conexion con cliente")
 
 	srv := grpc.NewServer()
@@ -483,6 +490,7 @@ func ConectarCliente(){
 func ConectarCamion(){
 
 	listenCamion, err := net.Listen("tcp", "10.6.40.157:50055")
+	//listenCamion, err := net.Listen("tcp", "localhost:50055")
 	failOnError(err, "error de conexion con camiones")
 
 	srv := grpc.NewServer()

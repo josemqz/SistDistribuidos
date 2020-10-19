@@ -12,9 +12,6 @@ import (
 
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
-
-	//"bufio"
-	//"io"
 )
 
 //preguntar si en memoria o csv
@@ -182,7 +179,7 @@ func EstadoCamion(idCam string, exito bool, reg RegPackage, camion logis.LogisSe
 	r, err := camion.ResEntrega(ctx, &logis.RegCamion{Id: reg.id_pkg, Intentos: reg.num_intentos, Estado: estado})
 	failOnError(err, "Error en comunicación de actualización de pedido desde Camión")
 
-	log.Printf("ok camion->logistico: %v", r.GetOk())
+	log.Printf("ok camion->logistico: %v\n", r.GetOk())
 
 	actualizarReg(idCam, reg.id_pkg, reg.fecha_entrega, reg.num_intentos)
 }
@@ -216,7 +213,7 @@ func maxIntentos(reg RegPackage) int{
 //regA > regB
 func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.LogisServiceClient){
 
-	//entrega exitosa o no
+	//entrega completada o no
 	var estadoA = false
 	var estadoB = false
 
@@ -264,7 +261,7 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 	//dos entregas
 	} else {
 		
-		for (!estadoA && tryA <= maxA) || (!estadoB && tryB <= maxB){	//CHECK
+		for (!estadoA && tryA < maxA) || (!estadoB && tryB < maxB){		//CHECK
 			
 			log.Println("Se están intentando enviar dos paquetes :3")
 			
@@ -281,7 +278,7 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 					EstadoCamion(idCam, true, regA, camion)
 					estadoA = true
 	
-				} else{
+				} else {
 					tryA += 1
 				}
 			}
@@ -308,7 +305,7 @@ func Delivery(idCam string, regA RegPackage, regB RegPackage, camion logis.Logis
 					EstadoCamion(idCam, true, regB, camion)
 					estadoB = true
 	
-				} else{
+				} else {
 					tryB += 1
 				}
 			}
@@ -358,15 +355,21 @@ func RegistrarPedido(camion logis.LogisServiceClient, idCam string, numPeticion 
 
 	//pedir a logística un paquete
 	if idCam == "CR1" {
+		mutex.Lock()
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: prevRetail1})
+		mutex.Unlock()
 		failOnError(err, "Error pidiendo paquete a logístico (" + idCam + ")")
 
 	} else if idCam == "CR2"{
+		mutex.Lock()
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: prevRetail2})
+		mutex.Unlock()
 		failOnError(err, "Error pidiendo paquete a logístico (" + idCam + ")")
 
 	} else if idCam == "CN" {
+		mutex.Lock()
 		pedido, err = camion.PedidoACamion(ctx, &logis.InfoCam{Tipo: tipoCam, NumPeticion: numPeticion, PrevRetail: false})
+		mutex.Unlock()
 		failOnError(err, "Error pidiendo paquete a logístico (" + idCam + ")")
 	}
 
@@ -460,9 +463,14 @@ func initCamion(idCam string, camion logis.LogisServiceClient) (){
 	if (reg1.tipo == "retail") || (reg2.tipo == "retail"){
 		
 		if idCam == "CR1"{
+			mutex.Lock()
 			prevRetail1 = true
+			mutex.Unlock()
+
 		} else if idCam == "CR2"{
+			mutex.Lock()
 			prevRetail1 = true
+			mutex.Unlock()
 		}
 	}
 
@@ -506,6 +514,7 @@ func main(){
 
 	//conexión
 	conn, err := grpc.Dial("10.6.40.157:50055", grpc.WithInsecure(), grpc.WithBlock())
+	//conn, err := grpc.Dial("localhost:50055", grpc.WithInsecure(), grpc.WithBlock())
 	failOnError(err,"Error en conexión a servidor")
 	defer conn.Close()
 

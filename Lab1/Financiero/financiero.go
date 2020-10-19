@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"sync"
 )
 
 /*
@@ -181,6 +182,32 @@ func main(){
 		false,
 		false,
 		nil,
+	forever := make(chan bool)
+
+	go func() {
+		
+		var i = 0
+		
+		for x := range msgs {
+
+			if i > 0{
+				log.Printf("Recibiendo informacion, calculando...")
+			}
+			
+			nuevo := convertjson(x.Body)
+			if(nuevo.Estado == "nr"){
+				norecib = append(norecib, nuevo)
+			}
+			contador(nuevo)
+			nuevo.Balance = balance_p
+			ganancias_t += ganancia_p
+			perdidas_t += perdidas_p
+			csvData(nuevo)
+			
+			mutex.Lock()
+			completados = append(completados, nuevo)
+			mutex.Unlock()
+
 	)
 	failOnError(err, "error al consumir de la cola")
 

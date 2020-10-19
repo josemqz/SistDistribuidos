@@ -36,7 +36,7 @@ func main() {
 	var opcion int
 
 	log.Println("-------------------------------------")
-	log.Println("  1. Realizar pedidos			      |")
+	log.Println("  1. Realizar pedidos                |")
 	log.Println("  2. Solicitar seguimiento de pedido |")
 	log.Println("-------------------------------------\n")
 	log.Print("Seleccionar opción: ")
@@ -48,7 +48,7 @@ func main() {
 		log.Println("Opción inválida\n")
 
 		log.Println("-------------------------------------")
-		log.Println("  1. Realizar pedidos			      |")
+		log.Println("  1. Realizar pedidos                |")
 		log.Println("  2. Solicitar seguimiento de pedido |")
 		log.Println("-------------------------------------\n")
 		log.Print("Seleccionar opción: ")
@@ -60,6 +60,7 @@ func main() {
 	log.Println("Cliente corriendo...")
 
 	conn, err := grpc.Dial("10.6.40.157:50051", grpc.WithInsecure(), grpc.WithBlock())
+	//conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure(), grpc.WithBlock())
 	failOnError(err, "Error en conexión a servidor")
 	defer conn.Close()
 
