@@ -4,7 +4,7 @@
 
 Integrantes:
 José Miguel Quezada | 201773528-7
-Ruth Vicuña         | 201673007-9
+Ruth Vicuña Vera    | 201673007-9
 
 
 Supuestos e información útil:
@@ -31,6 +31,9 @@ Supuestos e información útil:
 
     ·En los registros de camiones se realiza "append" de los datos actualizados de cada pedido, 
     por lo que cada ID aparece dos veces.
+
+    ·Si se realizan los pedidos de pyme y luego los de retail, estos últimos quedarán con id
+    de seguimiento igual a la cantidad de pedidos pyme, por un motivo que no pudimos esclacecer.
 
 
 Instrucciones:

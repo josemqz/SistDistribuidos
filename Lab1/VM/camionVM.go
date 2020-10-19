@@ -510,8 +510,8 @@ func main(){
 
 
 	//conexión
-	//conn, err := grpc.Dial("10.6.40.157:50055", grpc.WithInsecure(), grpc.WithBlock())
-	conn, err := grpc.Dial("localhost:50055", grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial("10.6.40.157:50055", grpc.WithInsecure(), grpc.WithBlock())
+	//conn, err := grpc.Dial("localhost:50055", grpc.WithInsecure(), grpc.WithBlock())
 	failOnError(err,"Error en conexión a servidor")
 	defer conn.Close()
 

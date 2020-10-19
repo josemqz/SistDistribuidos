@@ -8,6 +8,8 @@ import (
 	"errors"
 	"encoding/json"
 	"sync"
+	"os"
+	"fmt"
 	
 	"github.com/josemqz/SistDistribuidos/Lab1/logis"
 	"google.golang.org/grpc"
@@ -85,7 +87,7 @@ func csvData(reg RegPedido) {
 		log.Println(err)
 	}
 	defer ap.Close()
-	if _, err := ap.WriteString(reg.timestamp + "," + reg.id + "," + reg.tipo + "," + reg.nombre + + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_seguimiento) + "\n"); err != nil {
+	if _, err := ap.WriteString(reg.timestamp + "," + reg.id + "," + reg.tipo + "," + reg.nombre + "," + fmt.Sprint(reg.valor) + "," + reg.origen + "," + reg.destino + "," + fmt.Sprint(reg.num_seguimiento+1) + "\n"); err != nil {
 		log.Println(err)
 	}
 }
