@@ -424,7 +424,7 @@ func (s *server) PedidoCliente(ctx context.Context, pedido *logis.Pedido) (*logi
 					valor: pVal, 
 					origen: pedido.Tienda, 
 					destino: pedido.Destino, 
-					num_seguimiento: cod_tracking})
+					num_seguimiento: cod_tracking}
 
 	Registros = append(Registros, reg)
 
