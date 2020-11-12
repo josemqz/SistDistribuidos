@@ -7,147 +7,174 @@ import (
 		"math"
 		"os"
 		"strconv"
+		"strings"
 )
+
 
 func main() {
 
-		fileToBeChunked := "./bigfile.zip" // change here!
+	var archLibro string
 
-		file, err := os.Open(fileToBeChunked)
+	log.Println("Nombre de archivo del libro a registrar: ")
+	_, err = fmt.Scanf("%s", &archLibro)
 
-		if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-		}
+	for (err != nil){
 
-		defer file.Close()
+		log.Println("Opción inválida\n")
 
-		fileInfo, _ := file.Stat()
+		log.Println("Nombre de archivo del libro a registrar: ")
+		_, err = fmt.Scanf("%s", &archLibro)
 
-		var fileSize int64 = fileInfo.Size()
+	}
 
-		const fileChunk = 1 * (1 << 20) // 1 MB, change this to your requirement
+	file, err := os.Open(archLibro)
 
-		// calculate total number of parts the file will be chunked into
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	
+	defer file.Close()
 
-		totalPartsNum := uint64(math.Ceil(float64(fileSize) / float64(fileChunk)))
 
-		fmt.Printf("Splitting to %d pieces.\n", totalPartsNum)
+	/*var filename = "hello.blah"
+	var extension = filepath.Ext(filename)
+	var name = filename[0:len(filename)-len(extension)]*/
 
-		for i := uint64(0); i < totalPartsNum; i++ {
+	//nombre de archivo sin extensión
+	nombreArchLibro = strings.Split(archLibro, ".")[0]
+	log.Println("nombre libro format: ", nombreArchLibro)
 
-				partSize := int(math.Min(fileChunk, float64(fileSize-int64(i*fileChunk))))
-				partBuffer := make([]byte, partSize)
+	fileInfo, _ := file.Stat()
 
-				file.Read(partBuffer)
+	var fileSize int64 = fileInfo.Size()
 
-				// write to disk
-				fileName := "bigfile_" + strconv.FormatUint(i, 10)
-				_, err := os.Create(fileName)
+	const fileChunk = 0.25 * (1 << 20) // 250 kB
+	log.Println("chunks tamaño ", fileChunk)
+	
+	//Calcular cantidad de fragmentos para el archivo
 
-				if err != nil {
-						fmt.Println(err)
-						os.Exit(1)
-				}
+	totalPartsNum := uint64(math.Ceil(float64(fileSize) / float64(fileChunk)))
 
-				// write/save buffer to disk
-				ioutil.WriteFile(fileName, partBuffer, os.ModeAppend)
+	fmt.Printf("Cantidad de chunks: %d\n", totalPartsNum)
 
-				fmt.Println("Split to : ", fileName)
-		}
+	for i := uint64(0); i < totalPartsNum; i++ {
 
-		// just for fun, let's recombine back the chunked files in a new file
+		partSize := int(math.Min(fileChunk, float64(fileSize - int64(i*fileChunk))))
+		partBuffer := make([]byte, partSize)
 
-		newFileName := "NEWbigfile.zip"
-		_, err = os.Create(newFileName)
+		file.Read(partBuffer)
 
-		if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-		}
-
-		//set the newFileName file to APPEND MODE!!
-		// open files r and w
-
-		file, err = os.OpenFile(newFileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+		// nombre de fragmentos
+		fileName := "fragmento_" + nombreArchLibro + "_" + strconv.FormatUint(i, 10)
+		_, err := os.Create(fileName)
 
 		if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
-		// IMPORTANT! do not defer a file.Close when opening a file for APPEND mode!
-		// defer file.Close()
+		// guardar en disco
+		ioutil.WriteFile(fileName, partBuffer, os.ModeAppend)
 
-		// just information on which part of the new file we are appending
-		var writePosition int64 = 0
+		fmt.Println("Fragmento guardado en: ", fileName)
+	}
 
-		for j := uint64(0); j < totalPartsNum; j++ {
 
-				//read a chunk
-				currentChunkFileName := "bigfile_" + strconv.FormatUint(j, 10)
+	/*
+	// Reunir fragmentos ~~~
 
-				newFileChunk, err := os.Open(currentChunkFileName)
 
-				if err != nil {
-						fmt.Println(err)
-						os.Exit(1)
-				}
+	neoArchLibro := NombreArchLibro + "reconstruido.pdf"
+	_, err = os.Create(newFileName)
 
-				defer newFileChunk.Close()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
-				chunkInfo, err := newFileChunk.Stat()
+	//set the newFileName file to APPEND MODE!!
+	// open files r and w
 
-				if err != nil {
-						fmt.Println(err)
-						os.Exit(1)
-				}
+	file, err = os.OpenFile(newFileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 
-				// calculate the bytes size of each chunk
-				// we are not going to rely on previous data and constant
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
-				var chunkSize int64 = chunkInfo.Size()
-				chunkBufferBytes := make([]byte, chunkSize)
+	// IMPORTANT! do not defer a file.Close when opening a file for APPEND mode!
+	// defer file.Close()
 
-				fmt.Println("Appending at position : [", writePosition, "] bytes")
-				writePosition = writePosition + chunkSize
+	// just information on which part of the new file we are appending
+	var writePosition int64 = 0
 
-				// read into chunkBufferBytes
-				reader := bufio.NewReader(newFileChunk)
-				_, err = reader.Read(chunkBufferBytes)
+	for j := uint64(0); j < totalPartsNum; j++ {
 
-				if err != nil {
-						fmt.Println(err)
-						os.Exit(1)
-				}
+		//read a chunk
+		currentChunkFileName := "bigfile_" + strconv.FormatUint(j, 10)
 
-				// DON't USE ioutil.WriteFile -- it will overwrite the previous bytes!
-				// write/save buffer to disk
-				//ioutil.WriteFile(newFileName, chunkBufferBytes, os.ModeAppend)
+		newFileChunk, err := os.Open(currentChunkFileName)
 
-				n, err := file.Write(chunkBufferBytes)
-
-				if err != nil {
-						fmt.Println(err)
-						os.Exit(1)
-				}
-
-				file.Sync() //flush to disk
-
-				// free up the buffer for next cycle
-				// should not be a problem if the chunk size is small, but
-				// can be resource hogging if the chunk size is huge.
-				// also a good practice to clean up your own plate after eating
-
-				chunkBufferBytes = nil // reset or empty our buffer
-
-				fmt.Println("Written ", n, " bytes")
-
-				fmt.Println("Recombining part [", j, "] into : ", newFileName)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
-		// now, we close the newFileName
-		file.Close()
+		defer newFileChunk.Close()
+
+		chunkInfo, err := newFileChunk.Stat()
+
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		// calculate the bytes size of each chunk
+		// we are not going to rely on previous data and constant
+
+		var chunkSize int64 = chunkInfo.Size()
+		chunkBufferBytes := make([]byte, chunkSize)
+
+		fmt.Println("Appending at position : [", writePosition, "] bytes")
+		writePosition = writePosition + chunkSize
+
+		// read into chunkBufferBytes
+		reader := bufio.NewReader(newFileChunk)
+		_, err = reader.Read(chunkBufferBytes)
+
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		// DON't USE ioutil.WriteFile -- it will overwrite the previous bytes!
+		// write/save buffer to disk
+		//ioutil.WriteFile(newFileName, chunkBufferBytes, os.ModeAppend)
+
+		n, err := file.Write(chunkBufferBytes)
+
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		file.Sync() //flush to disk
+
+		// free up the buffer for next cycle
+		// should not be a problem if the chunk size is small, but
+		// can be resource hogging if the chunk size is huge.
+		// also a good practice to clean up your own plate after eating
+
+		chunkBufferBytes = nil // reset or empty our buffer
+
+		fmt.Println("Written ", n, " bytes")
+
+		fmt.Println("Recombining part [", j, "] into : ", newFileName)
+	}
+*/
+	// now, we close the newFileName
+	file.Close()
 
 }
 

@@ -1,5 +1,16 @@
+se generan como queramos (aleatorio), pero mínimo uno en cada 
+
 cómo se aprueban/rechazan las propuestas (datanodes)?
+depende de si están caídos o con algún bug
+si queremos puede ser aleatorio también, pero hay que documentarlo 
 
 cómo elegir qué algoritmo usar (centralizado o distribuido)?
+-hacer distintos archivos o
+-elegir por input
 
 cliente uploader/downloader son archivos distintos?
+da lo mismo
+
+¿todos los datanodes tienen que aceptar la propuesta, o solo los involucrados?
+yep, todos, siempre
+
