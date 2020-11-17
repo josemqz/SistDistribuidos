@@ -1,0 +1,41 @@
+
+syntax = "proto3";
+
+package book;
+
+option go_package="github.com/josemqz/SistDistribuidos/Lab2/book;book";
+
+
+message Chunk{
+    string nombreLibro = 1;
+    int32 numChunk = 2;
+    int32 size = 3;
+    string contenido = 4;
+}
+
+message ChunksInfo{
+    string nombreLibro = 1;
+    int32 cantidadChunks = 2;
+    string info = 3;
+}
+
+message ACK{
+    string ok = 1;
+}
+
+message LibroInfo{
+    string nombreLibro = 1;
+    int32 sizeLibro = 2;
+}
+
+service BookService{
+    
+    rpc func(msg) returns (msg) {}
+
+    rpc generarPropuesta(LibroInfo) returns (ACK) {}
+
+    //enviar propuesta de un datanode a x 
+    //enviar chunks
+    //exclusión mutua (?)
+
+}

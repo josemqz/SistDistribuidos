@@ -1,37 +1,43 @@
 package main
 
 import (
-	
+	"fmt"
+	"log"
+	"bufio"
+	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
 )
 
-func main() {
-
-
-	//pedir libro (solicitar ubicaciones de chunks)
-	//recibe direcciones de los chunks
-	
-	//pide chunk a cada id
-	//armar libro con los chunks
-
-
-	// Reunir fragmentos ~~~
+func descargarLibro(){
 
 	var archLibro string
 
-	log.Println("Nombre de archivo del libro a registrar: ")
+	log.Println("Nombre de archivo del libro a descargar: ")
 	_, err := fmt.Scanf("%s", &archLibro)
 
 	for (err != nil){
 
-		log.Println("Opción inválida")
-		log.Println("Nombre de archivo del libro a registrar: ")
+		log.Println("Texto ingresado inválido")
+		log.Println("Nombre de archivo del libro a descargar: ")
 		_, err = fmt.Scanf("%s", &archLibro)
 
 	}
 
+	//nombre sin extensión
 	nombreArchLibro := strings.Split(archLibro, ".")[0]
 
-	neoArchLibro := NombreArchLibro + "reconstruido.pdf"
+	
+	//verificar si existe carpeta con libros descargados
+	if os.IsNotExist("Neolibros"){
+		log.Println("Carpeta para libros descargados no existe")
+		os.Mkdir("Neolibros")
+		log.Println("Carpeta creada")
+	}
+	
+	//crear nuevo archivo donde escribir los chunks del libro
+	neoArchLibro := "./NeoLibros/" + NombreArchLibro + "_reconstruido.pdf"
 	_, err = os.Create(neoArchLibro)
 
 	if err != nil {
@@ -39,9 +45,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	//set the neoArchLibro file to APPEND MODE!!
-	// open files r and w
-
+	//abrir archivo
 	file, err = os.OpenFile(neoArchLibro, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 
 	if err != nil {
@@ -49,54 +53,50 @@ func main() {
 		os.Exit(1)
 	}
 
+	
+//solicitar ubicaciones de chunks al namenode
+	
+	//totalPartsNum := chunksinfo.size
+	//chunksinfo.info : "chunck1 ip1\nchunk2 ip2\n..."
+
+// Reunir fragmentos ~~~
+
 	// IMPORTANT! do not defer a file.Close when opening a file for APPEND mode!
 	// defer file.Close()
 
 	// just information on which part of the new file we are appending
-	var writePosition int64 = 0
+	var writePosition int32 = 0
 
 	for j := uint64(0); j < totalPartsNum; j++ {
 
-		//read a chunk
-		currentChunkFileName := "bigfile_" + strconv.FormatUint(j, 10)
+		//obtiene dirección de chunk j
+		//envía mensaje a nodo con chunk j
+		//recibe chunk y lo escribe en libro
 
-		newFileChunk, err := os.Open(currentChunkFileName)
+		//obtener tamaño del chunk
+		//
 
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
 
-		defer newFileChunk.Close()
-
-		chunkInfo, err := newFileChunk.Stat()
-
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
+		/*
 		// calculate the bytes size of each chunk
-		// we are not going to rely on previous data and constant
+		// we are not going to rely on previous data and constant // pues noso3 sí jaja
 
-		var chunkSize int64 = chunkInfo.Size()
+		var chunkSize int32 = chunk.Size
+		*/
+
 		chunkBufferBytes := make([]byte, chunkSize)
 
-		fmt.Println("Appending at position : [", writePosition, "] bytes")
+		fmt.Println("Escribiendo en byte: [", writePosition, "] bytes")
 		writePosition = writePosition + chunkSize
 
 		// read into chunkBufferBytes
-		reader := bufio.NewReader(newFileChunk)
+		reader := bufio.NewReader(chunk.Contenido)
 		_, err = reader.Read(chunkBufferBytes)
 
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		// DON't USE ioutil.WriteFile -- it will overwrite the previous bytes!
-		// write/save buffer to disk
-		//ioutil.WriteFile(newFileName, chunkBufferBytes, os.ModeAppend)
 
 		n, err := file.Write(chunkBufferBytes)
 
@@ -116,9 +116,16 @@ func main() {
 
 		fmt.Println("Written ", n, " bytes")
 
-		fmt.Println("Recombining part [", j, "] into : ", newFileName)
+		fmt.Println("Insertando parte [", j, "] en : ", NombreArchLibro, "_reconstruido.pdf")
 	}
 
 	file.Close()
+
+}
+
+func main() {
+
+
+
 
 }
