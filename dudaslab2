@@ -6,7 +6,7 @@ si queremos puede ser aleatorio también, pero hay que documentarlo
 
 cómo elegir qué algoritmo usar (centralizado o distribuido)?
 -hacer distintos archivos o
--elegir por input
+-elegir por input (mejor)
 
 cliente uploader/downloader son archivos distintos?
 da lo mismo

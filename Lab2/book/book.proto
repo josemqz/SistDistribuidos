@@ -7,16 +7,18 @@ option go_package="github.com/josemqz/SistDistribuidos/Lab2/book;book";
 
 
 message Chunk{
-    string nombreLibro = 1;
-    int32 numChunk = 2;
-    int32 size = 3;
-    string contenido = 4;
+    string remitente = 1;
+    string nombreLibro = 2;
+    int32 numChunk = 3;
+    int32 size = 4;
+    string contenido = 5;
 }
 
 message ChunksInfo{
-    string nombreLibro = 1;
-    int32 cantidadChunks = 2;
-    string info = 3;
+    string remitente = 1;
+    string nombreLibro = 2;
+    int32 cantidadChunks = 3;
+    string info = 4;
 }
 
 message ACK{
@@ -30,12 +32,13 @@ message LibroInfo{
 
 service BookService{
     
-    rpc func(msg) returns (msg) {}
-
     rpc generarPropuesta(LibroInfo) returns (ACK) {}
 
     //enviar propuesta de un datanode a x 
-    //enviar chunks
+
+    rpc RecibirChunksInfo(ChunksInfo) returns (ACK) {}
+    rpc RecibirChunk(Chunk) returns (ACK) {}
+
     //exclusión mutua (?)
 
 }

@@ -10,6 +10,14 @@ import (
 	"strings"
 )
 
+
+func failOnError(err error, msg string) {
+	if (err != nil) {
+		log.Fatalf("%s: %s\n", msg, err)
+	}
+}
+
+
 func descargarLibro(){
 
 	var archLibro string
@@ -40,18 +48,13 @@ func descargarLibro(){
 	neoArchLibro := "./NeoLibros/" + NombreArchLibro + "_reconstruido.pdf"
 	_, err = os.Create(neoArchLibro)
 
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	failOnError(err, "Error creando archivo de libro reconstruido")
 
 	//abrir archivo
 	file, err = os.OpenFile(neoArchLibro, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	failOnError(err, "Error abriendo archivo de libro reconstruido")
+
 
 	
 //solicitar ubicaciones de chunks al namenode
@@ -93,17 +96,13 @@ func descargarLibro(){
 		reader := bufio.NewReader(chunk.Contenido)
 		_, err = reader.Read(chunkBufferBytes)
 
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		failOnError(err, "Error escribiendo chunk en buffer")
+		
 
 		n, err := file.Write(chunkBufferBytes)
 
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		failOnError(err, "Error escribiendo chunk en archivo para reconstruir")
+		
 
 		file.Sync() //flush to disk
 

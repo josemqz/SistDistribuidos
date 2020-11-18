@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 )
-var tipo_al int
+
+var tipo_al string
+var num_chunks int32
 
 
 func failOnError(err error, msg string) {
@@ -49,11 +52,13 @@ func manejarConflictoCentr(){
 
 func main() {
 
-	log.Print("Ingresar tipo de algoritmo - c:centralizado / d:distribuido : ")
+	//chequear IP de máquina en la que estamos
+
+	log.Print("Ingresar tipo de algoritmo - c: centralizado / d: distribuido : ")
 
 	_, err := fmt.Scanf("%d", &tipo_al)
 
-	for (err != nil){
+	for (err != nil) || (tipo_al != "c" && tipo_al != "d"){ //chequear
 
 		log.Println("Tipo ingresado inválido!\n")
 		log.Print("Ingresar tipo de algoritmo - c:centralizado / d:distribuido : ")
@@ -62,13 +67,35 @@ func main() {
 	}
 	
 
-	//
-
 }
 
 
-//función para recibir chunks de cliente
-//debe proponer forma de distribución de los chunks
+func (s *server) RecibirChunksInfo(ctx context.Context, ci *book.ChunksInfo) (*book.ACK, error) {
+	
+	//info de chunks a recibir (para saber la cantidad de chunks 
+								//(para que genere la propuesta al recibir el último (ji)))
+
+	num_chunks = ci.cantidadChunks
+
+	return &book.ACK{ok: "ok"}, nil
+}
+
+
+//función rpc para recibir chunks de cliente
+func (s *server) RecibirChunk(ctx context.Context, chunk *book.Chunk) (*book.ACK, error) {
+	
+	//debería guardar los chunks en archivos locales?? (a mí me tinca)
+
+	//if lastChunk && está recibiendo del cliente:
+		//generarPropuesta()
+
+
+	//if algoritmo centralizado: >> enviar propuesta a namenode
+	//else >> enviar a demas pcs
+
+	return &book.ACK{ok: "ok"}, nil
+}
+
 //dependiendo del algoritmo...
 
 //función para aceptar o rechazar propuesta de distribución de chunks

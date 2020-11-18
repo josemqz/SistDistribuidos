@@ -29,7 +29,7 @@ func enviarChunk(chunk byte[], dir string){
 	
 	cliente := logis.NewBookServiceClient(conn)
 	
-	//funcion book.enviarChunk(chunk)
+	//funcion cliente.enviarChunk(chunk)
 
 }
 
@@ -52,16 +52,12 @@ func subirLibro(){
 	}
 
 	file, err := os.Open(archLibro)
-
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	failOnError(err,"No se pudo abrir archivo de libro")
 	
 	defer file.Close()
 
 	//escoger datanode para enviar chunks
-	switch dn := rand.Intn(3) //o 2?
+	switch dn := rand.Intn(3)
 	dn {
 		case 0:
 			dir := ""
@@ -71,6 +67,7 @@ func subirLibro(){
 			dir := ""
 		default:
 			//error fatal wtf, no debería pasar
+			failOnError(err,"Error fatal interno de Go (apareció un 3 en un random entre 0 y 2)")
 	}
 
 	
@@ -87,7 +84,7 @@ func subirLibro(){
 
 	const fileChunk = 250000 // 250 kB
 
-	log.Println("chunks tamaño ", fileChunk)
+	log.Println("chunks tamaño", fileChunk)
 
 	//Calcular cantidad de fragmentos para el archivo
 
@@ -104,6 +101,8 @@ func subirLibro(){
 		file.Read(partBuffer)
 
 		enviarChunk(partBuffer, dir) //sure??
+
+		fmt.Println("Fragmento", i, "enviado a DataNode", dn)
 
 	/*
 		// nombre de fragmentos
@@ -127,6 +126,8 @@ func subirLibro(){
 
 
 func main() {
+
+	subirLibro()
 
 }
 
