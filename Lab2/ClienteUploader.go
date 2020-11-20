@@ -29,6 +29,7 @@ func enviarChunk(chunk byte[], dir string){
 	
 	cliente := logis.NewBookServiceClient(conn)
 	
+	//stream??
 	//funcion cliente.enviarChunk(chunk)
 
 }
@@ -87,7 +88,6 @@ func subirLibro(){
 	log.Println("chunks tamaño", fileChunk)
 
 	//Calcular cantidad de fragmentos para el archivo
-
 	totalPartsNum := uint32(math.Ceil(float64(fileSize) / float64(fileChunk)))
 
 	fmt.Printf("Cantidad de chunks: %d\n", totalPartsNum)

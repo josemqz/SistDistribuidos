@@ -1,4 +1,4 @@
-//CLIENT
+//SERVER
 package main
 
 import (
@@ -7,5 +7,4 @@ import (
 
 func main(){
 
-	
 }

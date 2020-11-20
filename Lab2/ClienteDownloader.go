@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 )
-
+var dirNN = "" //direccion de PC de NameNode
 
 func failOnError(err error, msg string) {
 	if (err != nil) {
@@ -58,6 +58,7 @@ func descargarLibro(){
 
 	
 //solicitar ubicaciones de chunks al namenode
+//chunksinfo := 
 	
 	//totalPartsNum := chunksinfo.size
 	//chunksinfo.info : "chunck1 ip1\nchunk2 ip2\n..."
@@ -124,6 +125,15 @@ func descargarLibro(){
 
 func main() {
 
+	//conexion con NameNode
+	conn, err := grpc.Dial(dirNN, grpc.WithInsecure(), grpc.WithBlock())
+	failOnError(err,"Error en conexión a NameNode")
+	defer conn.Close()
+
+	camion := logis.NewLogisServiceClient(conn)
+	log.Println("Conexión realizada\n")
+
+	descargarLibro()
 
 
 

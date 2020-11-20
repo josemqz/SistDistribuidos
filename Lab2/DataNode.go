@@ -8,6 +8,8 @@ import (
 var tipo_al string
 var num_chunks int32
 
+//verificar si hay un pc caido para aceptar/rechazar la propuesta
+
 
 func failOnError(err error, msg string) {
 	if (err != nil) {
@@ -38,6 +40,32 @@ func manejarConflictoDist(){
 	
 	*/
 
+	//R&A
+	/*
+	On initialization
+		state := RELEASED
+
+	To enter the section
+		state := WANTED							//-\
+		Multicast request to all processes		//---> Request processing deferred here
+		T:= request's timestamp;				//_/
+		Wait until (number of replies received = (N-1));
+		state := HELD
+
+	On receipt of a request <T_i,p_i> at p_j (i!=j)
+		if (state == HELD ) or (state == WANTED and (T_j,p_j) < (T_i,p_i))
+		{
+			queue request from p_i without replying
+		}
+		else{
+			reply immediately to p_i
+	}
+
+To exit the critical section
+	state := RELEASED
+	reply to any queued requests
+	*/
+
 }
 
 func manejarConflictoCentr(){
@@ -65,6 +93,8 @@ func main() {
 		
 		_, err = fmt.Scanf("%d", &tipo_al)
 	}
+
+	//conexion
 	
 
 }

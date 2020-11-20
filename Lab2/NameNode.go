@@ -20,6 +20,28 @@ func failOnError(err error, msg string) {
 	}
 }
 
+//DEFINIR NOMBRES DE DATANODES CON IP CORRESPONDIENTES
+
+
+func checkDatanode(nombredn string){
+// if online return "On"
+// if caido return "Off"
+}
+
+func analizarPropuesta(prop string){
+	//revisar si hay pc caido - request timeout
+	if (checkDatanode(A) == "Off"){
+		//pasar info a datanodes B y C
+	}
+	if (checkDatanode(B) == "Off"){
+		//pasar info a datanodes A y C
+	} 
+	if (checkDatanode(C) == "Off"){
+		//pasar info a datanodes A y B
+	}
+	
+}
+
 /*
 func logNameNode(reg RegistroLog, npartesA int, npartesB int, npartesC int, ipA string, ipB string, ipC string) {
 
