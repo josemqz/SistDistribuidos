@@ -9,6 +9,12 @@ import (
 	"google.golang.org/grpc"
 )
 
+func failOnError(err error, msg string) {
+	if (err != nil) {
+		log.Fatalf("%s: %s\n", msg, err)
+	}
+}
+
 func main(){
 
 	conn, err := grpc.Dial(dirNN, grpc.WithInsecure(), grpc.WithBlock())

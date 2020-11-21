@@ -2,9 +2,11 @@ package main
 //SERVER
 
 import (
-	"context"
 	"log"
-	
+	"net"
+	"io"
+	"errors"
+
 	"github.com/josemqz/SistDistribuidos/test/testp"
 	"google.golang.org/grpc"
 )
@@ -12,6 +14,12 @@ import (
 
 type server struct {
 	testp.UnimplementedTestpServiceServer
+}
+
+func failOnError(err error, msg string) {
+	if (err != nil) {
+		log.Fatalf("%s: %s\n", msg, err)
+	}
 }
 
 func main(){
@@ -29,7 +37,7 @@ func main(){
 
 // Upload implements the Upload method of the GuploadService interface which is 
 // responsible for receiving a stream of chunks that form a complete file.
-func (s *ServerGRPC) RecibirBytes(stream testp.TestpService_UploadServer) (err error) {
+func (s *server) RecibirBytes(stream testp.TestpService_UploadServer) (err error) {
 	
 	// while there are messages coming
 	for {
@@ -48,7 +56,7 @@ func (s *ServerGRPC) RecibirBytes(stream testp.TestpService_UploadServer) (err e
 	END:
 	// once the transmission finished, send the confirmation if nothing went wrong
 
-	err = stream.SendAndClose(&testp.ACK{ok: "ok"})
+	err = stream.SendAndClose(&testp.ACK{Ok: "ok"})
 	// ...
 
 	return
