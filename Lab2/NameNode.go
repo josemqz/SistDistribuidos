@@ -3,9 +3,24 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"time"
+	"context"
 )
-
 var tipo_al string
+var dA string //datanode A
+var dB string //datanode B
+var dC string //datanode C
+
+//DEFINIR NOMBRES DE DATANODES CON IP CORRESPONDIENTES
+dA = "" //ip maquina virtual datanode A
+dB = "" //ip maquina virtual datanode B
+dC = "" //ip maquina virtual datanode C
+
+
+type server struct {
+	book.UnimplementedBoookServiceServer
+}
 
 type RegistroLog struct{  //utilizada en func logNameNode - en caso de aprobar crear mje en proto
 	nombreLibro string
@@ -20,67 +35,85 @@ func failOnError(err error, msg string) {
 	}
 }
 
-//DEFINIR NOMBRES DE DATANODES CON IP CORRESPONDIENTES
 
+func checkDatanode(dn string){
+	//REVISAR que use parametro
+	var estado bool
 
-func checkDatanode(nombredn string){
-// if online return "On"
-// if caido return "Off"
+	//set deadline
+	nodeDeadline := time.Now().Add(time.Duration(2) * time.Second)
+	ctx, cancel := context.WithDeadline(ctx, nodeDeadline)
+	
+	// if caido retorna false / si online retorna true
+	if ctx.Err() == context.Canceled{
+		estado = false
+	}else{
+		estado = true
+	}
+
+	return estado
 }
 
-func analizarPropuesta(prop string){
-	//revisar si hay pc caido - request timeout
-	if (checkDatanode(A) == "Off"){
-		//pasar info a datanodes B y C
+func (s *server) analizarPropuesta(ctx context.Context, prop *book.PropuestaLibro) (bool, error){
+	//retorna true si acepta propuesta y false si rechaza
+
+	//revisa si hay un datanode caido que se usa en la propuesta
+	if (prop.DatanodeA == true && checkDatanode(dA) == false){
+		return false, nil
 	}
-	if (checkDatanode(B) == "Off"){
-		//pasar info a datanodes A y C
+	if (prop.DatanodeB == true && checkDatanode(dB) == false){
+		return false, nil
 	} 
-	if (checkDatanode(C) == "Off"){
-		//pasar info a datanodes A y B
+	if (prop.DatanodeC == true && checkDatanode(dC) == false){
+		return false, nil
 	}
 	
 }
 
-/*
-func logNameNode(reg RegistroLog, npartesA int, npartesB int, npartesC int, ipA string, ipB string, ipC string) {
 
-	ap, err := os.OpenFile("registro_log.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	failOnError(err,"Error abriendo Log")
 
-	int x := reg.numLibro //numero del libro para identificar parte_x_i
+//para recibir entradas para el log
 
-	defer ap.Close()
+//distribuido
+func (s *server) escribirLogD(ctx context.Context, prop *book.PropuestaLibro) (*book.ACK, error) {
 	
-	if (reg.ipChunk == ipA){// escribir en datanode A
-		if _, err := ap.WriteString(reg.nombreLibro + " " + npartesA + "\n"); err != nil {
-			log.Println(err)
-			for (i = 0; i < npartesA; i += 1){
-				ap.WriteString("parte_" + x + "_" + i + " " + ipA + "\n")
+	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
 
-			}
-		}
-	}
-	if (reg.ipChunk == ipB){// escribir en datanode B
-		if _, err := ap.WriteString(reg.nombreLibro + " " + npartesB + "\n"); err != nil {
-			log.Println(err)
-			for (i = 0; i < npartesB; i += 1){
-				ap.WriteString("parte_" + x + "_" + i + " " + ipB + "\n")
+    if err != nil {
+        log.Fatalf("error al abrir el archivo: %s", err)
+    }
+
+    defer f.Close()
+
+    _, err2 := f.WriteString(prop.NombreLibro + " " + prop.CantChunks + "\n" + prop.Propuesta + "\n")
+
+    if err2 != nil {
+        log.Fatalf("error al escribir en archivo: %s", err)
+    }
 	
-			}
-		}
-	}
-	if (reg.ipChunk == ipC){// escribir en datanode C
-		if _, err := ap.WriteString(reg.nombreLibro + " " + npartesC + "\n"); err != nil {
-			log.Println(err)
-			for (i = 0; i < npartesC; i += 1){
-				ap.WriteString("parte_" + x + "_" + i + " " + ipC + "\n")
-	
-			}
-		}
-	}		
+	return &book.ACK{Ok: "listo"}, nil
 }
-*/
+
+//centralizado
+func escribirLogCen(prop string, nombreL string, cant int32){
+	
+	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
+
+    if err != nil {
+        log.Fatalf("error al abrir el archivo: %s", err)
+    }
+
+    defer f.Close()
+
+    _, err2 := f.WriteString(nombreL + " " + cant + "\n" + prop+ "\n")
+
+    if err2 != nil {
+        log.Fatalf("error al escribir en archivo: %s", err)
+	}
+	
+	fmt.Println("listo")
+	return nil
+}
 
 
 func main() {
@@ -101,5 +134,3 @@ func main() {
 
 }
 
-//función para recibir entradas para el log
-//dependiendo del algoritmo 

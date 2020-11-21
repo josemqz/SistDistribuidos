@@ -96,12 +96,10 @@ func descargarLibro(){
 		// read into chunkBufferBytes
 		reader := bufio.NewReader(chunk.Contenido)
 		_, err = reader.Read(chunkBufferBytes)
-
 		failOnError(err, "Error escribiendo chunk en buffer")
 		
 
 		n, err := file.Write(chunkBufferBytes)
-
 		failOnError(err, "Error escribiendo chunk en archivo para reconstruir")
 		
 

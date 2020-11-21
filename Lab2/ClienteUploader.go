@@ -76,20 +76,17 @@ func subirLibro(){
 	var extension = filepath.Ext(filename)
 	var name = filename[0:len(filename)-len(extension)]*/
 
-	//nombre de archivo sin extensión
+	//Nombre de archivo sin extensión
 	nombreArchLibro := strings.Split(archLibro, ".")[0]
 
+	//Tamaño de archivo
 	fileInfo, _ := file.Stat()
-
 	var fileSize int32 = fileInfo.Size()
 
 	const fileChunk = 250000 // 250 kB
 
-	log.Println("chunks tamaño", fileChunk)
-
 	//Calcular cantidad de fragmentos para el archivo
 	totalPartsNum := uint32(math.Ceil(float64(fileSize) / float64(fileChunk)))
-
 	fmt.Printf("Cantidad de chunks: %d\n", totalPartsNum)
 
 

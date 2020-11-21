@@ -14,20 +14,33 @@ message Chunk{
     string contenido = 5;
 }
 
+// Mensaje inicial a DataNode
 message ChunksInfo{
     string remitente = 1;
     string nombreLibro = 2;
-    int32 cantidadChunks = 3;
+    int32 cantChunks = 3;
     string info = 4;
 }
 
-message ACK{
-    string ok = 1;
-}
 
 message LibroInfo{
     string nombreLibro = 1;
     int32 sizeLibro = 2;
+}
+
+message PropuestaLibro{
+    string nombreLibro = 1;
+    string propuesta = 2;
+    bool estadoP = 3;
+    int32 cantChunks = 4;
+    //si la propuesta considera usar datanode a b c
+    bool datanodeA = 5;
+    bool datanodeB = 6;
+    bool datanodeC = 7;
+}
+
+message ACK{
+    string ok = 1;
 }
 
 service BookService{

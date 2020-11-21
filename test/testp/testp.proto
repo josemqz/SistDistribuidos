@@ -1,13 +1,15 @@
 syntax = "proto3";
+
 package testp;
-option go_package="github.com/josemqz/SistDistribuidos/Lab2/test/testp;testp";
+
+option go_package="github.com/josemqz/SistDistribuidos/test/testp;testp";
 
 message MSG{
-    string ok: 1;
-    bytes file = 2;
+    string ok = 1;
+    bytes arch = 2;
 }
 message ACK{
-    string ok: 1;
+    string ok = 1;
 }
 
 service TestpService{
