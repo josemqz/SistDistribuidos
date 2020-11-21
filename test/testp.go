@@ -47,7 +47,7 @@ func (s *server) RecibirBytes(stream testp.TestpService_UploadServer) (err error
 				goto END
 			}
 
-			err = errors.Wrapf(err,
+			err = errors.Wrap(err,
 				"failed unexpectadely while reading chunks from stream")
 			return
 		}
