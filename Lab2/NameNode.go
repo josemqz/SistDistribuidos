@@ -6,16 +6,25 @@ import (
 	"os"
 	"time"
 	"context"
+
+    "golang.org/x/net/context"
+    "google.golang.org/grpc"
+    pb "google.golang.org/grpc/examples/helloworld/helloworld"	
 )
+
+
 var tipo_al string
 var dA string //datanode A
 var dB string //datanode B
 var dC string //datanode C
+var deadline int32
+var name string
 
 //DEFINIR NOMBRES DE DATANODES CON IP CORRESPONDIENTES
 dA = "" //ip maquina virtual datanode A
 dB = "" //ip maquina virtual datanode B
 dC = "" //ip maquina virtual datanode C
+
 
 
 type server struct {
@@ -35,39 +44,53 @@ func failOnError(err error, msg string) {
 	}
 }
 
-
+//verifica si hay un datanode caido
 func checkDatanode(dn string){
-	//REVISAR que use parametro
-	var estado bool
 
-	//set deadline
-	nodeDeadline := time.Now().Add(time.Duration(2) * time.Second)
-	ctx, cancel := context.WithDeadline(ctx, nodeDeadline)
+	deadline = 2 //segundos que espera para ver si hay conexión
 	
-	// if caido retorna false / si online retorna true
-	if ctx.Err() == context.Canceled{
-		estado = false
-	}else{
-		estado = true
+	if (dn == dA){
+		name = "datanode A"
+	}
+	if (dn == dB){
+		name = "datanode B"
+	}
+	if (dn == dC){
+		name = "datanode C"
 	}
 
-	return estado
+	conn, err := grpc.Dial(dn, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second)
+    if err != nil {
+		log.Fatalf("No se pudo conectar con %v: %v", name, err)
+		return false
+    }
+    defer conn.Close()
+	c := pb.NewGreeterClient(conn) //necesario?? es solo chekear pero no aun conectar 4real
+	return true
 }
 
 func (s *server) analizarPropuesta(ctx context.Context, prop *book.PropuestaLibro) (bool, error){
 	//retorna true si acepta propuesta y false si rechaza
+	fmt.Println("Analizando la propuesta...\n")
 
-	//revisa si hay un datanode caido que se usa en la propuesta
+	//book.PropuestaLibro sabe cuales datanodes se pretenden usar en la propuesta, por ejemplo
+	//si prop.DatanodeA es true entonces se usaría en la propuesta, pero si esta caído se rechaza la propuesta
+
+	//revisa si hay un datanode de la propuesta caído
 	if (prop.DatanodeA == true && checkDatanode(dA) == false){
+		fmt.Println("Se rechaza la propuesta\n")
 		return false, nil
 	}
 	if (prop.DatanodeB == true && checkDatanode(dB) == false){
+		fmt.Println("Se rechaza la propuesta\n")
 		return false, nil
 	} 
 	if (prop.DatanodeC == true && checkDatanode(dC) == false){
+		fmt.Println("Se rechaza la propuesta\n")
 		return false, nil
 	}
-	
+
+	return true, nil
 }
 
 
@@ -116,9 +139,34 @@ func escribirLogCen(prop string, nombreL string, cant int32){
 }
 
 
+
+func generarNuevaPropuesta(){
+
+}
+
+
+
+func recibirPropDatanode(){
+	//solo para centralizado (si es distr. el namenode va directo a escribir al log la propuesta
+	//aceptada por los otros datanodes - diagrama secuencia)
+
+//Cuando datanode envia propuesta aca se usa
+//la funcion analizarPropuesta y si esta da false
+//se usa generarNuevaPropuesta y se analiza
+//hasta que analizarPropuesta de true
+//luego se escribe en el log con escribirLogCen
+
+
+}
+
+func conectarCliente(){
+	//Cliente Uploader
+	//Cliente Downloader
+}
+
 func main() {
 
-
+	//revisar si aca es el input o en cliente uploader unicamente
 	log.Print("Ingresar tipo de algoritmo - c:centralizado / d:distribuido : ")
 
 	_, err := fmt.Scanf("%d", &tipo_al)
@@ -131,6 +179,11 @@ func main() {
 		_, err = fmt.Scanf("%d", &tipo_al)
 	}
 
+	if (tipo_al == "c"){
+		recibirPropDatanode(/* ? */)
+	}else{
+		escribirLogD(/* context.Context, *book.PropuestaLibro ???  */)
+	}
 
 }
 
