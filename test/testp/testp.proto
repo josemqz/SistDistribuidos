@@ -8,6 +8,7 @@ message MSG{
     string ok = 1;
     bytes arch = 2;
 }
+
 message ACK{
     string ok = 1;
 }

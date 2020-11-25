@@ -128,11 +128,10 @@ func main() {
 	failOnError(err,"Error en conexión a NameNode")
 	defer conn.Close()
 
-	camion := logis.NewLogisServiceClient(conn)
+	cliente := book.NewBookServiceClient(conn)
 	log.Println("Conexión realizada\n")
 
 	descargarLibro()
-
 
 
 }

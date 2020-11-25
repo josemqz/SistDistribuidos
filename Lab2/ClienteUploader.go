@@ -27,7 +27,7 @@ func enviarChunk(chunk byte[], dir string){
 	failOnError(err, "Error en conexión a servidor")
 	defer conn.Close()
 	
-	cliente := logis.NewBookServiceClient(conn)
+	cliente := book.NewBookServiceClient(conn)
 	
 	//stream??
 	//funcion cliente.enviarChunk(chunk)

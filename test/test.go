@@ -6,12 +6,10 @@ import (
 	"time"
 	"context"
 	"io"
-	//"stats"
 	"os"
 	
 	"github.com/josemqz/SistDistribuidos/test/testp"
 	"google.golang.org/grpc"
-	//"golang.org/x/perf/internal/stats"
 )
 
 func failOnError(err error, msg string) {
@@ -29,12 +27,11 @@ func main(){
 	client := testp.NewTestpServiceClient(conn)
 	log.Println("Conexión realizada\n")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1000 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()
 
 	err = SubirArchivo(client, ctx, "./srcBooks/Alicia_a_traves_del_espejo-Carroll_Lewis.pdf")
-
-	failOnError(err,"ble")
+	failOnError(err,"Error enviando archivo")
 
 }
 
@@ -68,6 +65,7 @@ func SubirArchivo(client testp.TestpServiceClient, ctx context.Context, f string
 		// put as many bytes as `chunkSize` into the
 		// buf array.
 		n, err := file.Read(buf)
+		log.Println("escribiendo chunk")
 
 		if (err != nil){
 			if err == io.EOF{
@@ -79,6 +77,7 @@ func SubirArchivo(client testp.TestpServiceClient, ctx context.Context, f string
 
 		// ... if `eof` --> `writing=false`...
 
+		log.Println("enviando chunk")
 		stream.Send(&testp.MSG{
 				// because we might've read less than
 				// `chunkSize` we want to only send up to
