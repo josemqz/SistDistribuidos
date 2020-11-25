@@ -153,9 +153,19 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 //se usa generarNuevaPropuesta y se analiza
 //hasta que analizarPropuesta de true
 //luego se escribe en el log con escribirLogCen
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
 
-	analizarPropuesta(prop.PropuestaLibro)
-
+	//for infinito
+	for {
+		if analizarPropuesta(ctx,prop) == true {
+			break
+		}
+		generarNuevaPropuesta(ctx,prop) //argumentos correctos?
+	}
+	escribirLogCen(prop.Propuesta, prop.NombreLibro, prop.CantChunks)
+	
 
 }
 
@@ -163,6 +173,59 @@ func conectarCliente(){
 	//Cliente Uploader
 	//Cliente Downloader
 }
+
+
+//Responde al Cliente Downloader con las ubicaciones de los chunks de libro solicitado
+func localizacionChunks(nombreL string){
+
+	f, err := os.Open("logdata.txt")
+	failOnError(err, "Error en cargar log")
+	defer f.Close()
+
+	// hace Splits por cada linea por defecto.
+	scanner := bufio.NewScanner(f)
+
+	line := 1
+	
+	for scanner.Scan() {
+    	if strings.Contains(scanner.Text(), "yourstring") {
+        	return line, nil
+    	}
+
+    	line++
+	}
+
+	if err := scanner.Err(); err != nil {
+    	// Handle the error
+	}
+	
+	
+	
+	
+	
+	
+	/*file, err := os.Open("logdata.txt")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer func() {
+        if err = f.Close(); err != nil {
+            log.Fatal(err)
+        }
+    }()
+
+    scanner := bufio.NewScanner(file)
+
+    for scanner.Scan() {             // internally, it advances token based on sperator
+        fmt.Println(scanner.Text())  // token in unicode-char
+        fmt.Println(scanner.Bytes()) // token in bytes
+
+    }*/
+}
+
+//Envia el listado de libros disponibles a los clientes que se lo solicitan
+func listadoLibrosAv(){}
+
 
 func main() {
 
