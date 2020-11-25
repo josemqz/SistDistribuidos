@@ -8,7 +8,8 @@ import (
 	"os"
 	"fmt"
 	"bytes"
-	
+	"strconv"
+
 	"github.com/pkg/errors"
 	"github.com/josemqz/SistDistribuidos/test/testp"
 	"google.golang.org/grpc"
@@ -35,18 +36,18 @@ func main(){
 	testp.RegisterTestpServiceServer(srv, &server{})
 
 	log.Fatalln(srv.Serve(listenCliente))
-
 }
 
 
-// Upload implements the Upload method of the GuploadService interface which is 
-// responsible for receiving a stream of chunks that form a complete file.
+// Función rpc para recibir chunks
 func (s *server) RecibirBytes(stream testp.TestpService_RecibirBytesServer) (err error) {
 	
-	// while there are messages coming
+	//número de chunk
+	numChunk := 0
+
 	for {
 		
-		log.Println("recibiendo chunk")
+		log.Println("Recibiendo chunk")
 		chunk, err := stream.Recv()
 		
 		if err != nil {
@@ -58,49 +59,45 @@ func (s *server) RecibirBytes(stream testp.TestpService_RecibirBytesServer) (err
 			err = errors.Wrapf(err,
 				"failed unexpectadely while reading chunks from stream")
 				return err
-			}
+		}
 		
-		writePosition := 0
-
-		neoArchLibro := "./NeoLibros/" + "blablabla" + "_reconstruido.pdf"
+		//crear archivo de chunk
+		strNumChunk := strconv.Itoa(numChunk)
+		neoArchLibro := "./NeoLibros/" + chunk.Nombre + "_" + strNumChunk
 		_, err = os.Create(neoArchLibro)
 		failOnError(err, "Error creando archivo de libro reconstruido")
-	
+
+
 		//abrir archivo
 		file, err := os.OpenFile(neoArchLibro, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 		failOnError(err, "Error abriendo archivo de libro reconstruido")
+		fmt.Println("Escribiendo chunk en disco")
 
-		fmt.Println("Escribiendo en byte: [", writePosition, "] bytes")
-
+		/*
+		//buffer
 		chunkBufferBytes := make([]byte, len(chunk.Arch))
 
-		// read into chunkBufferBytes
+		//escribir chunk en buffer
 		reader := bytes.NewReader(chunk.Arch) //cambiar
 		_, err = reader.Read(chunkBufferBytes)
 		failOnError(err, "Error escribiendo chunk en buffer")
+		*/
 
-
-		n, err := file.Write(chunkBufferBytes)
+		n, err := file.Write(chunk.Arch)
 		failOnError(err, "Error escribiendo chunk en archivo para reconstruir")
-		
+		fmt.Println(n, " bytes escritos")
 
-		file.Sync() //flush to disk
-
-		//chunkBufferBytes = nil // reset or empty our buffer
-		
+		file.Close()
 		chunk = nil
-		
-		fmt.Println("Written ", n, " bytes")
+		file = nil
+		//chunkBufferBytes = nil // reset or empty our buffer
 
-		//fmt.Println("Insertando parte [", j, "] en : ", NombreArchLibro, "_reconstruido.pdf")
-
+		numChunk += 1
 	}
 
+	//Enviar confirmación al terminar el stream
 	END:
-	// once the transmission finished, send the confirmation if nothing went wrong
 
 	err = stream.SendAndClose(&testp.ACK{Ok: "ok"})
-	// ...
-
 	return
 }

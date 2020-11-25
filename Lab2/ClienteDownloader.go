@@ -8,8 +8,15 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"google.golang.org/grpc"
+	"github.com/josemqz/SistDistribuidos/Lab2/book"
 )
-var dirNN = "" //direccion de PC de NameNode
+var dirNN = ""  //direccion NameNode
+var dirDN1 = "" //dirección DataNodesde PC de
+var dirDN1 = "" 
+var dirDN1 = "" 
+
 
 func failOnError(err error, msg string) {
 	if (err != nil) {
@@ -18,17 +25,17 @@ func failOnError(err error, msg string) {
 }
 
 
-func descargarLibro(){
+func descargarLibro(clienteNN book.BookServiceClient){
 
 	var archLibro string
 
-	log.Println("Nombre de archivo del libro a descargar: ")
+	log.Println("Nombre de archivo del libro a descargar (con extensión): ")
 	_, err := fmt.Scanf("%s", &archLibro)
 
 	for (err != nil){
 
-		log.Println("Texto ingresado inválido")
-		log.Println("Nombre de archivo del libro a descargar: ")
+		log.Println("Nombre ingresado inválido")
+		log.Println("Nombre de archivo del libro a descargar (con extensión): ")
 		_, err = fmt.Scanf("%s", &archLibro)
 
 	}
@@ -37,7 +44,7 @@ func descargarLibro(){
 	nombreArchLibro := strings.Split(archLibro, ".")[0]
 
 	
-	//verificar si existe carpeta con libros descargados
+	//verificar si existe carpeta con libros a descargar
 	if os.IsNotExist("Neolibros"){
 		log.Println("Carpeta para libros descargados no existe")
 		os.Mkdir("Neolibros")
@@ -47,23 +54,22 @@ func descargarLibro(){
 	//crear nuevo archivo donde escribir los chunks del libro
 	neoArchLibro := "./NeoLibros/" + NombreArchLibro + "_reconstruido.pdf"
 	_, err = os.Create(neoArchLibro)
-
 	failOnError(err, "Error creando archivo de libro reconstruido")
 
 	//abrir archivo
 	file, err = os.OpenFile(neoArchLibro, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
-
 	failOnError(err, "Error abriendo archivo de libro reconstruido")
-
 
 	
 //solicitar ubicaciones de chunks al namenode
-//chunksinfo := 
+	chunksInfo := clienteNN.conectarCliente(nombreArchLibro)
+	dirChunks := Strings.split(chunksInfo.info, "\n")
 	
-	//totalPartsNum := chunksinfo.size
-	//chunksinfo.info : "chunck1 ip1\nchunk2 ip2\n..."
+	totalPartsNum := chunksInfo.cantChunks
 
 // Reunir fragmentos ~~~
+
+	//conexión a los tres nodos
 
 	// IMPORTANT! do not defer a file.Close when opening a file for APPEND mode!
 	// defer file.Close()
@@ -71,15 +77,18 @@ func descargarLibro(){
 	// just information on which part of the new file we are appending
 	var writePosition int32 = 0
 
-	for j := uint64(0); j < totalPartsNum; j++ {
+	//for j := uint64(0); j < totalPartsNum; j++ {
+	for j in range(dirChunks){
+
+		jInfo = Strings.split(j, " ") 	//definir
+		archChunk = jInfo[0] 			//definir
+		DNChunk = jInfo[1]  			//definir
 
 		//obtiene dirección de chunk j
 		//envía mensaje a nodo con chunk j
 		//recibe chunk y lo escribe en libro
 
 		//obtener tamaño del chunk
-		//
-
 
 		/*
 		// calculate the bytes size of each chunk
@@ -124,14 +133,13 @@ func descargarLibro(){
 func main() {
 
 	//conexion con NameNode
-	conn, err := grpc.Dial(dirNN, grpc.WithInsecure(), grpc.WithBlock())
+	connNN, err := grpc.Dial(dirNN, grpc.WithInsecure(), grpc.WithBlock())
 	failOnError(err,"Error en conexión a NameNode")
-	defer conn.Close()
+	defer connNN.Close()
 
-	cliente := book.NewBookServiceClient(conn)
-	log.Println("Conexión realizada\n")
+	clienteNN := book.NewBookServiceClient(conn)
+	log.Println("Conexión a NameNode realizada\n")
 
-	descargarLibro()
-
+	descargarLibro(clienteNN)
 
 }

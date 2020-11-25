@@ -166,13 +166,18 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 	}
 	escribirLogCen(prop.Propuesta, prop.NombreLibro, prop.CantChunks)
 	
-
 }
 
-func conectarCliente(){
-	//Cliente Uploader
-	//Cliente Downloader
+
+
+//leerLog
+func (s *server) conectarCliente(){
+	//Cliente Downloader -> retornar distribución de chunks
+	
+	//buscar en txt nombre de archivo de libro
+	//for -> unir en un string y retornar un string con toda la distribución
 }
+
 
 
 //Responde al Cliente Downloader con las ubicaciones de los chunks de libro solicitado
@@ -225,7 +230,6 @@ func localizacionChunks(nombreL string){
 
 //Envia el listado de libros disponibles a los clientes que se lo solicitan
 func listadoLibrosAv(){}
-
 
 func main() {
 

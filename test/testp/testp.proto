@@ -5,7 +5,7 @@ package testp;
 option go_package="github.com/josemqz/SistDistribuidos/test/testp;testp";
 
 message MSG{
-    string ok = 1;
+    string nombre = 1;
     bytes arch = 2;
 }
 
