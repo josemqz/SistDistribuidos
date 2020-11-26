@@ -25,7 +25,13 @@ func failOnError(err error, msg string) {
 }
 
 
-func descargarLibro(clienteNN book.BookServiceClient){
+func verLibros(clienteNN book.BookServiceClient, ctx context.Context){
+	clienteNN.EnviarListaLibros(ctx) //string or what
+
+}
+
+
+func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 
 	var archLibro string
 
@@ -62,27 +68,24 @@ func descargarLibro(clienteNN book.BookServiceClient){
 
 	
 //solicitar ubicaciones de chunks al namenode
-	chunksInfo := clienteNN.conectarCliente(nombreArchLibro)
-	dirChunks := Strings.split(chunksInfo.info, "\n")
-	
-	totalPartsNum := chunksInfo.cantChunks
+	chunksInfo := clienteNN.ChunkInfoLog(ctx, &book.ChunksInfo{NombreLibro: nombreArchLibro})
+
+	dirChunks := Strings.Fields(chunksInfo.info)
+	totalPartsNum := len(dirChunks)
+
 
 // Reunir fragmentos ~~~
 
 	//conexión a los tres nodos
 
-	// IMPORTANT! do not defer a file.Close when opening a file for APPEND mode!
-	// defer file.Close()
-
-	// just information on which part of the new file we are appending
 	var writePosition int32 = 0
 
 	//for j := uint64(0); j < totalPartsNum; j++ {
 	for j in range(dirChunks){
 
-		jInfo = Strings.split(j, " ") 	//definir
+		jInfo = strings.split(j, " ") 	//definir
 		archChunk = jInfo[0] 			//definir
-		DNChunk = jInfo[1]  			//definir
+		DirChunk = jInfo[1]  			//definir
 
 		//obtiene dirección de chunk j
 		//envía mensaje a nodo con chunk j
@@ -90,12 +93,8 @@ func descargarLibro(clienteNN book.BookServiceClient){
 
 		//obtener tamaño del chunk
 
-		/*
 		// calculate the bytes size of each chunk
-		// we are not going to rely on previous data and constant // pues noso3 sí jaja
-
-		var chunkSize int32 = chunk.Size
-		*/
+		//var chunkSize int32 = chunk.Size
 
 		chunkBufferBytes := make([]byte, chunkSize)
 
@@ -127,12 +126,37 @@ func descargarLibro(clienteNN book.BookServiceClient){
 	}
 
 	file.Close()
-
 }
+
 
 func main() {
 
-	//conexion con NameNode
+	var opcion int
+
+	log.Println("-------------------------------------")
+	log.Println("  1. Ver libros disponibles          |")
+	log.Println("  2. Descargar libro				  |")
+	log.Println("-------------------------------------\n")
+	log.Print("Seleccionar opción: ")
+
+	_, err = fmt.Scanf("%d", &opcion)
+
+	for (err != nil) || (opcion != 1 && opcion != 2) {
+
+		log.Println("Opción inválida\n")
+
+		log.Println("-------------------------------------")
+		log.Println("  1. Ver libros disponibles          |")
+		log.Println("  2. Descargar libro				  |")
+		log.Println("-------------------------------------\n")
+		log.Print("Seleccionar opción: ")
+
+		_, err = fmt.Scanf("%d", &opcion)
+
+	}
+
+
+	//conexión con NameNode
 	connNN, err := grpc.Dial(dirNN, grpc.WithInsecure(), grpc.WithBlock())
 	failOnError(err,"Error en conexión a NameNode")
 	defer connNN.Close()
@@ -140,6 +164,14 @@ func main() {
 	clienteNN := book.NewBookServiceClient(conn)
 	log.Println("Conexión a NameNode realizada\n")
 
-	descargarLibro(clienteNN)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+
+
+	if (opcion == 1){
+		verLibros(clienteNN, ctx)
+
+	} else{
+		descargarLibro(clienteNN, ctx)
+	}
 
 }

@@ -109,16 +109,6 @@ func main() {
 }
 
 
-func (s *server) RecibirChunksInfo(ctx context.Context, ci *book.ChunksInfo) (*book.ACK, error) {
-	
-	//info de chunks a recibir (para saber la cantidad de chunks 
-								//(para que genere la propuesta al recibir el último (ji)))
-
-	num_chunks = ci.cantidadChunks
-
-	return &book.ACK{ok: "ok"}, nil
-}
-
 
 //función rpc para recibir chunks de cliente
 func (s *server) RecibirChunks(ctx context.Context, stream book.BookService_RecibirChunksServer) (*book.ACK, error) {

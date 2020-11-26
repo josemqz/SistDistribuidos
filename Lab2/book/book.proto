@@ -13,18 +13,20 @@ message Chunk{
     string contenido = 5;
 }
 
-// Mensaje inicial a DataNode
 message ChunksInfo{
-    string remitente = 1;
-    string nombreLibro = 2;
-    int32 cantChunks = 3;
-    string info = 4;
+    string nombreLibro = 1;
+    int32 cantChunks = 2;
+    string info = 3;
 }
 
-message LibroInfo{
-    string nombreLibro = 1;
-    int32 sizeLibro = 2;
+message ListaLibros{
+    string lista = 1;
 }
+
+//message LibroInfo{
+//    string nombreLibro = 1;
+//    int32 sizeLibro = 2;
+//}
 
 message PropuestaLibro{
     string nombreLibro = 1;
@@ -41,15 +43,22 @@ message ACK{
     string ok = 1;
 }
 
+
 service BookService{
     
-    rpc GenerarPropuesta(LibroInfo) returns (ACK) {}
+    rpc EnviarPropuesta() returns (ACK) {}
 
     //enviar propuesta de un datanode a x 
 
-    rpc RecibirChunksInfo(ChunksInfo) returns (ACK) {}
     rpc RecibirChunk(Chunk) returns (ACK) {}
     rpc RecibirChunks(stream Chunk) returns (ACK) {}
+
+//NameNode
+    rpc escribirLogD(PropuestaLibro) returns (ACK) {}
+    rpc recibirPropDatanode(PropuestaLibro) returns (ACK) {}
+
+    rpc ChunkInfoLog(ChunksInfo) returns (ACK){}
+    rpc EnviarListaLibros() returns (ListaLibros) {}
 
 
     //exclusión mutua (?)

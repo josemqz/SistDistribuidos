@@ -9,18 +9,14 @@ import (
 	"math/rand"
 )
 
-
 var tipo_al string
-var dA string //datanode A
-var dB string //datanode B
-var dC string //datanode C
 var deadline int32
 var name string
 
 //DEFINIR NOMBRES DE DATANODES CON IP CORRESPONDIENTES
-dA = "" //ip maquina virtual datanode A
-dB = "" //ip maquina virtual datanode B
-dC = "" //ip maquina virtual datanode C
+dA := "" //ip maquina virtual datanode A
+dB := "" //ip maquina virtual datanode B
+dC := "" //ip maquina virtual datanode C
 
 
 
@@ -64,7 +60,7 @@ func escribirLogCen(prop string, nombreL string, cant int32){
 	failOnError(err, "Error abriendo log")
     defer f.Close()
 
-    _, err2 := f.WriteString(nombreL + " " + cant + "\n" + prop+ "\n")
+    _, err2 := f.WriteString(nombreL + " " + cant + "\n" + prop + "\n")
 	failOnError(err, "Error escribiendo en log")
 
 	fmt.Println("Escritura en log exitosa")
@@ -143,7 +139,7 @@ func generarNuevaPropuesta(prop *book.PropuestaLibro) string{
 	}
 	
 	var dAct string
-	for i := 0; i < n; i++{ 
+	for i = 0; i < n; i++{ 
 		
 		switch intProp[i]{
 		case 0:
@@ -166,13 +162,12 @@ func generarNuevaPropuesta(prop *book.PropuestaLibro) string{
 
 
 
+//solo para centralizado
 func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLibro) (*book.ACK, error){
-//solo para centralizado (si es distr. el namenode va directo a escribir al log la propuesta
-//aceptada por los otros DataNodes - diagrama secuencia)
 
 //Cuando un DataNode envia una propuesta, se analiza la Propuesta
 //Si se rechaza se genera una nueva y se analiza hasta que analizarPropuesta sea true
-//luego se escribe en el log la propuesta
+//Luego se escribe en el log la propuesta
 
 	Prop := prop.PropuestaLibro
 
@@ -183,89 +178,102 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 		Prop = generarNuevaPropuesta(prop)
 	}
 
-	escribirLogCen(prop.Propuesta, prop.NombreLibro, prop.CantChunks)
-
+	escribirLogCen(Prop, prop.NombreLibro, prop.CantChunks)
 }
-
-
-
-//leerLog
-func (s *server) conectarCliente(){
-	//Cliente Downloader -> retornar distribución de chunks
-	
-	//buscar en txt nombre de archivo de libro
-	//for -> unir en un string y retornar un string con toda la distribución
-
-	listenCliente, err := net.Listen("tcp", addressCD)
-	failOnError(err, "error de conexion con cliente downloader")
-
-	srv := grpc.NewServer()
-	book.RegisterBookServiceClient(srv, /*&server{}*/)
-
-	log.Fatalln(srv.Serve(listenCliente))
-	
-}
-
 
 
 //Responde al Cliente Downloader con las ubicaciones de los chunks de libro solicitado
-func localizacionChunks(nombreL string){
+func localizacionChunks(nombreL string) string{
 
 	f, err := os.Open("logdata.txt")
-	failOnError(err, "Error en cargar log")
+	failOnError(err, "Error en abrir log")
 	defer f.Close()
 
 	// hace Splits por cada linea por defecto.
 	scanner := bufio.NewScanner(f)
 
-	line := 1
+	var listachunks string
+	var info []string
+	var t string
+	var init int
+	var n int
+	var mark bool
+	mark = false
 	
 	for scanner.Scan() {
-    	if strings.Contains(scanner.Text(), "yourstring") {
-        	return line, nil
-    	}
-
-    	line++
+		t = scanner.Text()
+		if mark{
+			info = strings.Fields(t)
+			listachunks += info[1] + " "
+			init++
+			if (init == n) {
+				return listachunks
+			}
+		}
+    	if (strings.Contains(t, nombreL)) {
+			words := strings.Fields(t) //es como split por blankspace
+			n, _ = strconv.Atoi(words[1])
+			init = 0
+			mark = true
+			continue
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
-    	// Handle the error
+    	log.Fatalf("No se pudo localizar chunks correctamente: %v", err)
 	}
-	
-	
-	
-	
-	
-	
-	/*file, err := os.Open("logdata.txt")
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer func() {
-        if err = f.Close(); err != nil {
-            log.Fatal(err)
-        }
-    }()
-
-    scanner := bufio.NewScanner(file)
-
-    for scanner.Scan() {             // internally, it advances token based on sperator
-        fmt.Println(scanner.Text())  // token in unicode-char
-        fmt.Println(scanner.Bytes()) // token in bytes
-
-    }*/
 }
+
+
+//Lee el log y retorna la lista de libros disponibles
+func ListaLibrosLog() string{
+	
+	var listaLibros string
+
+	f, err := os.Open("logdata.txt")
+	failOnError(err, "Error en abrir log")
+	defer f.Close()
+
+	//hace Splits por cada linea por defecto.
+	scanner := bufio.NewScanner(f)
+
+	for scanner.Scan() {
+		
+		words := strings.Fields(scanner.Text())
+
+		//si el segundo elemento en la línea es un número
+		//entonces el primero es un título de libro
+		if _, err := strconv.Atoi(words[1]); err == nil {
+			listaLibros += words[0] + "\n" //(?)
+		}
+	}
+
+	return listaLibros
+}
+
+
+//Enviar direcciones de chunks desde el Log
+func (s *server) ChunkInfoLog(ctx context.Context, libro *book.ChunksInfo) *book.ChunksInfo{
+	return &book.ChunksInfo{info: localizacionChunks(libro.NombreLibro)}
+}
+
 
 //Envia el listado de libros disponibles a los clientes que se lo solicitan
-func listadoLibrosAv(){
-
+func (s *server) EnviarListaLibros(ctx context.Context) *book.ListaLibros{
+	return &book.ListaLibros{Lista: ListaLibrosLog()}
 }
+
+
+
+func exclusionMCen(){
+	var q [2]int
+	
+}
+
 
 func main() {
 
-
-
-	//revisar si aca es el input 
+//revisar si acá es el input 
 	log.Print("Ingresar tipo de algoritmo - c:centralizado / d:distribuido : ")
 
 	_, err := fmt.Scanf("%d", &tipo_al)
@@ -278,9 +286,33 @@ func main() {
 		_, err = fmt.Scanf("%d", &tipo_al)
 	}
 
+
+	//conexión a cliente Downloader
+	listenCD, err := net.Listen("tcp", addressCD)
+	failOnError(err, "Error de conexión con cliente downloader")
+
+	srv := grpc.NewServer()
+	book.RegisterBookServiceClient(srv, &server{})
+
+	log.Fatalln(srv.Serve(listenCD))
+
+
+	//conexión a cliente Uploader
+	listenCU, err := net.Listen("tcp", addressCU)
+	failOnError(err, "Error de conexión con cliente downloader")
+
+	srv := grpc.NewServer()
+	book.RegisterBookServiceClient(srv, &server{})
+
+	log.Fatalln(srv.Serve(listenCU))
+
+	//conexión a DataNodes
+
+	//proceder según algoritmo
 	if (tipo_al == "c"){
 		recibirPropDatanode(/* ? */)
-	}else{
+		
+	} else{
 		escribirLogD(/* context.Context, *book.PropuestaLibro ???  */)
 	}
 
