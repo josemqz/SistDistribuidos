@@ -114,9 +114,6 @@ func main() {
 			dir := ""
 		case 2:
 			dir := ""
-		default:
-			//error fatal wtf, no debería pasar
-			failOnError(err,"Error fatal interno de Go (apareció un 3 en un random entre 0 y 2)")
 	}
 
 	//(cambiar dirección) -> dir

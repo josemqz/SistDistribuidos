@@ -6,8 +6,7 @@ import (
 	"os"
 	"time"
 	"context"
-
-
+	"math/rand"
 )
 
 
@@ -45,48 +44,35 @@ func failOnError(err error, msg string) {
 
 //para recibir entradas para el log
 //distribuido
-func (s *server) escribirLogD(ctx context.Context, prop *book.PropuestaLibro) (*book.ACK, error) {
+func (s *server) escribirLogD(prop *book.PropuestaLibro) (*book.ACK, error) {
 	
 	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
-
-    if err != nil {
-        log.Fatalf("error al abrir el archivo: %s", err)
-    }
-
+	failOnError(err, "Error abriendo log")
     defer f.Close()
 
     _, err2 := f.WriteString(prop.NombreLibro + " " + prop.CantChunks + "\n" + prop.Propuesta + "\n")
-
-    if err2 != nil {
-        log.Fatalf("error al escribir en archivo: %s", err)
-    }
+	failOnError(err, "Error escribiendo en log")
 	
 	return &book.ACK{Ok: "listo"}, nil
 }
+
 
 //centralizado
 func escribirLogCen(prop string, nombreL string, cant int32){
 	
 	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
-
-    if err != nil {
-        log.Fatalf("error al abrir el archivo: %s", err)
-    }
-
+	failOnError(err, "Error abriendo log")
     defer f.Close()
 
     _, err2 := f.WriteString(nombreL + " " + cant + "\n" + prop+ "\n")
+	failOnError(err, "Error escribiendo en log")
 
-    if err2 != nil {
-        log.Fatalf("error al escribir en archivo: %s", err)
-	}
-	
-	fmt.Println("listo")
+	fmt.Println("Escritura en log exitosa")
 	return nil
 }
 
 
-//verifica si hay un datanode caido
+//verifica si hay un DataNode caido
 func checkDatanode(dn string){
 
 	deadline = 2 //segundos que espera para ver si hay conexión
@@ -106,13 +92,16 @@ func checkDatanode(dn string){
 		log.Fatalf("No se pudo conectar con %v: %v", name, err)
 		return false
     }
-    defer conn.Close()
+	defer conn.Close()
+	
 	c := book.NewBookServiceClient(conn) //necesario?? es solo chekear pero no aun conectar 4real
+
+	conn.Close()
 	return true
 }
 
 
-func (s *server) analizarPropuesta(ctx context.Context, prop *book.PropuestaLibro) (bool, error){
+func analizarPropuesta(prop *book.PropuestaLibro) (bool, error){
 	//retorna true si acepta propuesta y false si rechaza
 	fmt.Println("Analizando la propuesta...\n")
 
@@ -120,15 +109,15 @@ func (s *server) analizarPropuesta(ctx context.Context, prop *book.PropuestaLibr
 	//si prop.DatanodeA es true entonces se usaría en la propuesta, pero si esta caído se rechaza la propuesta
 
 	//revisa si hay un datanode de la propuesta caído
-	if (prop.DatanodeA == true && checkDatanode(dA) == false){
+	if (prop.DatanodeA && !checkDatanode(dA)){
 		fmt.Println("Se rechaza la propuesta\n")
 		return false, nil
 	}
-	if (prop.DatanodeB == true && checkDatanode(dB) == false){
+	if (prop.DatanodeB && !checkDatanode(dB)){
 		fmt.Println("Se rechaza la propuesta\n")
 		return false, nil
 	} 
-	if (prop.DatanodeC == true && checkDatanode(dC) == false){
+	if (prop.DatanodeC && !checkDatanode(dC)){
 		fmt.Println("Se rechaza la propuesta\n")
 		return false, nil
 	}
@@ -137,35 +126,65 @@ func (s *server) analizarPropuesta(ctx context.Context, prop *book.PropuestaLibr
 }
 
 
+//Genera una nueva propuesta con una lista generada aleatoriamente
+//Recibe el mensaje con la propuesta original para tener
+//el nombre del libro y la cantidad de chunks
+func generarNuevaPropuesta(prop *book.PropuestaLibro) string{
 
-func generarNuevaPropuesta(){
+	//inicio de propuesta
+	n := prop.CantChunks
+	Prop := prop.NombreLibro + " " + n + "\n"
 
+	//arreglo con valores aleatorios de DataNodes
+	intProp := make([]int, n)
+
+	for i := 0; i < n; i++{
+		intProp[i] = rand.Intn(3)
+	}
+	
+	var dAct string
+	for i := 0; i < n; i++{ 
+		
+		switch intProp[i]{
+		case 0:
+			dAct = dA
+		case 1:
+			dAct = dB
+		case 2:
+			dAct = dC
+		}
+		
+		Prop += prop.NombreLibro + "_" + strconv.Itoa(i) + " " + dAct + "\n"
+		
+		/*"nombre_archivo_chunk_0 ipDNx\n
+		 nombre_archivo_chunk_1 ipDNy\n
+		 nombre_archivo_chunk_2 ipDNz..." */
+	}
+
+	return Prop
 }
 
 
 
 func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLibro) (*book.ACK, error){
-	//solo para centralizado (si es distr. el namenode va directo a escribir al log la propuesta
-	//aceptada por los otros datanodes - diagrama secuencia)
+//solo para centralizado (si es distr. el namenode va directo a escribir al log la propuesta
+//aceptada por los otros DataNodes - diagrama secuencia)
 
-//Cuando datanode envia propuesta aca se usa
-//la funcion analizarPropuesta y si esta da false
-//se usa generarNuevaPropuesta y se analiza
-//hasta que analizarPropuesta de true
-//luego se escribe en el log con escribirLogCen
-	
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
+//Cuando un DataNode envia una propuesta, se analiza la Propuesta
+//Si se rechaza se genera una nueva y se analiza hasta que analizarPropuesta sea true
+//luego se escribe en el log la propuesta
 
-	//for infinito
+	Prop := prop.PropuestaLibro
+
 	for {
-		if analizarPropuesta(ctx,prop) == true {
+		if analizarPropuesta(Prop) {
 			break
 		}
-		generarNuevaPropuesta(ctx,prop) //argumentos correctos?
+		Prop = generarNuevaPropuesta(prop)
 	}
+
 	escribirLogCen(prop.Propuesta, prop.NombreLibro, prop.CantChunks)
-	
+
 }
 
 
@@ -176,6 +195,15 @@ func (s *server) conectarCliente(){
 	
 	//buscar en txt nombre de archivo de libro
 	//for -> unir en un string y retornar un string con toda la distribución
+
+	listenCliente, err := net.Listen("tcp", addressCD)
+	failOnError(err, "error de conexion con cliente downloader")
+
+	srv := grpc.NewServer()
+	book.RegisterBookServiceClient(srv, /*&server{}*/)
+
+	log.Fatalln(srv.Serve(listenCliente))
+	
 }
 
 
@@ -229,11 +257,15 @@ func localizacionChunks(nombreL string){
 }
 
 //Envia el listado de libros disponibles a los clientes que se lo solicitan
-func listadoLibrosAv(){}
+func listadoLibrosAv(){
+
+}
 
 func main() {
 
-	//revisar si aca es el input o en cliente uploader unicamente
+
+
+	//revisar si aca es el input 
 	log.Print("Ingresar tipo de algoritmo - c:centralizado / d:distribuido : ")
 
 	_, err := fmt.Scanf("%d", &tipo_al)

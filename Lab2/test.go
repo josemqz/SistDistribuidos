@@ -1,11 +1,12 @@
-//CLIENT
 package main
 
 import (
-	"log"
+	"fmt"
+	"math/rand"
 )
 
 func main(){
-
 	
+	fmt.Println(rand.Perm(10))
+
 }
