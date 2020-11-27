@@ -51,7 +51,7 @@ func ArchivoLibro() string, string {
 }
 
 
-func subirLibro(client book.BookServiceClient, ctx context.Context, fileN string, bookN string) (err error) {
+func subirLibro(client book.BookServiceClient, ctx context.Context, fileN string, bookN string, tipo_al string) (err error) {
 
 	//abrir archivo a enviar
 	file, err := os.Open(fileN)
@@ -89,7 +89,7 @@ func subirLibro(client book.BookServiceClient, ctx context.Context, fileN string
 		//enviar chunk
 		log.Println("enviando chunk")
 		stream.Send(&book.Chunk{
-			Remitente: "cliente",
+			Algoritmo: tipo_al,
 			NombreLibro: bookN,
 			//NumChunk: 
 			Contenido: buf[:n]}) //con [:n] se envía <= 250 kB
@@ -105,7 +105,40 @@ func subirLibro(client book.BookServiceClient, ctx context.Context, fileN string
 
 func main() {
 		
-	//escoger datanode para enviar chunks
+	//escoger tipo de algoritmo
+
+	var opcion int
+
+	fmt.Println("Escoger tipo de distribución")
+	fmt.Println("----------------------------")
+	fmt.Println("  1. Centralizada          |")
+	fmt.Println("  2. Descentralizada		|")
+	fmt.Println("----------------------------\n")
+	fmt.Print("Seleccionar opción: ")
+
+	_, err = fmt.Scanf("%d", &opcion)
+
+	for (err != nil) || (opcion != 1 && opcion != 2) {
+
+		log.Println("Opción inválida\n")
+		
+		fmt.Println("Escoger tipo de distribución")
+		fmt.Println("----------------------------")
+		fmt.Println("  1. Centralizada          |")
+		fmt.Println("  2. Descentralizada		|")
+		fmt.Println("----------------------------\n")
+		fmt.Print("Seleccionar opción: ")
+
+		_, err = fmt.Scanf("%d", &opcion)
+	}
+
+	if (opcion == 1){
+		tipo_al = "c"
+	} else{
+		tipo_al = "d"
+	}
+
+	//escoger datanode al que enviar chunks
 	switch dn := rand.Intn(3)
 	dn {
 		case 0:
@@ -116,9 +149,9 @@ func main() {
 			dir := ""
 	}
 
-	//(cambiar dirección) -> dir
+	//conn, err := grpc.Dial(dir, grpc.WithInsecure(), grpc.WithBlock())
 	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure(), grpc.WithBlock())
-	failOnError(err,"Error en conexión a Testp")
+	failOnError(err,"Error en conexión a NameNode")
 	defer conn.Close()
 
 	client := testp.NewTestpServiceClient(conn)
@@ -134,7 +167,7 @@ func main() {
 
 
 	//subir libro
-	err = subirLibro(client, ctx, nombreArch, nombreLibro)
+	err = subirLibro(client, ctx, nombreArch, nombreLibro, tipo_al)
 	failOnError(err,"Error subiendo libro")
 
 }

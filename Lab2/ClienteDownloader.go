@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"github.com/josemqz/SistDistribuidos/Lab2/book"
 )
+
 var dirNN = ""  //direccion NameNode
 var dirDN1 = "" //dirección DataNodesde PC de
 var dirDN1 = "" 
@@ -105,11 +106,11 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 		reader := bufio.NewReader(chunk.Contenido)
 		_, err = reader.Read(chunkBufferBytes)
 		failOnError(err, "Error escribiendo chunk en buffer")
-		
+
 
 		n, err := file.Write(chunkBufferBytes)
 		failOnError(err, "Error escribiendo chunk en archivo para reconstruir")
-		
+
 
 		file.Sync() //flush to disk
 
@@ -152,7 +153,6 @@ func main() {
 		log.Print("Seleccionar opción: ")
 
 		_, err = fmt.Scanf("%d", &opcion)
-
 	}
 
 

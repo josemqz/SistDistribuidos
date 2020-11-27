@@ -134,6 +134,24 @@ func generarPropuesta(cantChunks int, nombreLibro string) string{
 }
 
 
+func main() {
+
+//conexion
+//listen (go)
+	//DataNode
+	//DataNode
+
+	//ClienteUploader //recibir stream de chunks
+	//ClienteDownloader //entregar chunk
+
+
+//clientes
+	//DataNode //enviar propuesta | verificar estado de nodos (verificar propuesta) | enviar chunks
+	//DataNode
+
+}
+
+
 //enviar propuesta a Datanode (centralizado)
 func EnviarPropNameNode(prop *book.PropuestaLibro) error{
 
@@ -225,11 +243,11 @@ func (s *server) RecibirChunks(ctx context.Context, stream book.BookService_Reci
 	//descentralizado
 	} else{
 		//enviar a demas pcs
-		respA, DNcaidoA := enviarPropuestaDN(dA, prop) //por mientras, hay que cambiar a futuro
-		respB, DNcaidoB := enviarPropuestaDN(dB, prop) //por mientras, hay que cambiar a futuro
+		enviarPropuestaDN(dA, prop.Propuesta) //por mientras, hay que cambiar a futuro
+		enviarPropuestaDN(dB, prop.Propuesta) //por mientras, hay que cambiar a futuro
 	}
 	
-	distribuirChunks() //<<<<<<<<<
+	//distribuir chunks
 
 	return &book.ACK{Ok: "ok"}, nil
 }
@@ -316,7 +334,7 @@ func (s *server) RecibirPropuesta(ctx context.Context, prop *book.PropuestaLibro
 
 
 //enviar propuesta a otros DataNodes (descentralizado)
-func enviarPropuestaDN(dir string, prop *book.PropuestaLibro) (bool, int) {
+func enviarPropuesta(dir string, prop *book.PropuestaLibro) {
 
 	//conexión
 	connDN, err := grpc.Dial(dir, grpc.WithInsecure(), grpc.WithBlock())
@@ -325,31 +343,13 @@ func enviarPropuestaDN(dir string, prop *book.PropuestaLibro) (bool, int) {
 
 	clientDN := book.NewBookServiceClient(connDN)
 	log.Println("Conexión realizada\n")
-
+	
 	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()
 
 
-	resp, DNcaido := clientDN.RecibirPropuesta(ctx, prop) //check
+	clientDN.RecibirPropuesta(ctx, prop) //check
 
 	connDN.close()
-	return resp, DNcaido
+
 }
-
-
-func main() {
-
-	//conexion
-	//listen (go)
-		//DataNode
-		//DataNode
-	
-		//ClienteUploader //recibir stream de chunks
-		//ClienteDownloader //entregar chunk
-	
-	
-	//clientes
-		//DataNode //enviar propuesta | verificar estado de nodos (verificar propuesta) | enviar chunks
-		//DataNode
-	
-	}

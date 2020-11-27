@@ -7,7 +7,7 @@ option go_package="github.com/josemqz/SistDistribuidos/Lab2/book;book";
 
 
 message Chunk{
-    string remitente = 1;
+    string algoritmo = 1;
     string nombreLibro = 2;
     int32 numChunk = 3;
     string contenido = 5;
@@ -33,10 +33,15 @@ message PropuestaLibro{
     string propuesta = 2;
     bool estadoP = 3;
     int32 cantChunks = 4;
-    //si la propuesta considera usar datanode a b c
+    //si la propuesta considera usar datanode a, b y/o c
     bool datanodeA = 5;
     bool datanodeB = 6;
     bool datanodeC = 7;
+}
+
+message RespuestaP{
+    bool respuesta = 1;
+    string DNcaido = 2;
 }
 
 message ACK{

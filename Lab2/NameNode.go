@@ -7,6 +7,10 @@ import (
 	"time"
 	"context"
 	"math/rand"
+	"sync"
+
+	"google.golang.org/grpc"
+	"github.com/josemqz/SistDistribuidos/Lab2/book"
 )
 
 var tipo_al string
@@ -14,10 +18,10 @@ var deadline int32
 var name string
 
 //DEFINIR NOMBRES DE DATANODES CON IP CORRESPONDIENTES
-dA := "" //ip maquina virtual datanode A
-dB := "" //ip maquina virtual datanode B
-dC := "" //ip maquina virtual datanode C
-
+dA := "" 	//ip MV DataNode A
+dB := "" 	//ip MV DataNode B
+dC := "" 	//ip MV DataNode C
+dAct := ""  //ip NameNode
 
 
 type server struct {
@@ -29,6 +33,8 @@ type RegistroLog struct{  //utilizada en func logNameNode - en caso de aprobar c
 	numLibro int32
 	ipChunk string
 }
+
+var mutex = &sync.Mutex{}
 
 
 func failOnError(err error, msg string) {
@@ -55,7 +61,8 @@ func (s *server) escribirLogD(prop *book.PropuestaLibro) (*book.ACK, error) {
 
 //centralizado
 func escribirLogCen(prop string, nombreL string, cant int32){
-	
+
+	mutex.Lock()
 	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
 	failOnError(err, "Error abriendo log")
     defer f.Close()
@@ -63,29 +70,21 @@ func escribirLogCen(prop string, nombreL string, cant int32){
     _, err2 := f.WriteString(nombreL + " " + cant + "\n" + prop + "\n")
 	failOnError(err, "Error escribiendo en log")
 
+	mutex.Unlock()
+
 	fmt.Println("Escritura en log exitosa")
 	return nil
 }
 
 
 //verifica si hay un DataNode caido
-func checkDatanode(dn string){
+func checkDatanode(dn string, name string){
 
 	deadline = 2 //segundos que espera para ver si hay conexión
-	
-	if (dn == dA){
-		name = "datanode A"
-	}
-	if (dn == dB){
-		name = "datanode B"
-	}
-	if (dn == dC){
-		name = "datanode C"
-	}
 
 	conn, err := grpc.Dial(dn, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second)
     if err != nil {
-		log.Fatalf("No se pudo conectar con %v: %v", name, err)
+		log.Printf("No se pudo conectar con %v: %v", name, err)
 		return false
     }
 	defer conn.Close()
@@ -97,23 +96,25 @@ func checkDatanode(dn string){
 }
 
 
+//retorna true si acepta propuesta y false si rechaza
 func analizarPropuesta(prop *book.PropuestaLibro) (bool, error){
-	//retorna true si acepta propuesta y false si rechaza
-	fmt.Println("Analizando la propuesta...\n")
+	
+	log.Println("Analizando la propuesta...")
 
-	//book.PropuestaLibro sabe cuales datanodes se pretenden usar en la propuesta, por ejemplo
-	//si prop.DatanodeA es true entonces se usaría en la propuesta, pero si esta caído se rechaza la propuesta
+	//prop sabe cuales datanodes se pretenden usar en la propuesta
+	//por ejemplo, si prop.DatanodeA==true, entonces se usaría en la propuesta
+	//pero si esta caído se rechaza la propuesta
 
 	//revisa si hay un datanode de la propuesta caído
-	if (prop.DatanodeA && !checkDatanode(dA)){
+	if (prop.DatanodeA && !checkDatanode(dA, "datanode A")){
 		fmt.Println("Se rechaza la propuesta\n")
 		return false, nil
 	}
-	if (prop.DatanodeB && !checkDatanode(dB)){
+	if (prop.DatanodeB && !checkDatanode(dB, "datanode B")){
 		fmt.Println("Se rechaza la propuesta\n")
 		return false, nil
 	} 
-	if (prop.DatanodeC && !checkDatanode(dC)){
+	if (prop.DatanodeC && !checkDatanode(dC, "datanode C")){
 		fmt.Println("Se rechaza la propuesta\n")
 		return false, nil
 	}
@@ -122,9 +123,32 @@ func analizarPropuesta(prop *book.PropuestaLibro) (bool, error){
 }
 
 
+func buscarNodoCaido() (string, error){
+
+	//revisa si hay un datanode caído
+	if (!checkDatanode(dA, "datanode A")){
+		return dA, nil
+	}
+	if (!checkDatanode(dB, "datanode B")){
+		return dB, nil
+	} 
+	if (!checkDatanode(dC, "datanode C")){
+		return dC, nil
+
+	} else{
+		e := "no hay nodos caidos"
+	}
+
+	return e, nil
+}
+
+
+/*
 //Genera una nueva propuesta con una lista generada aleatoriamente
 //Recibe el mensaje con la propuesta original para tener
 //el nombre del libro y la cantidad de chunks
+//esta funcion considera los 3 datanodes
+
 func generarNuevaPropuesta(prop *book.PropuestaLibro) string{
 
 	//inicio de propuesta
@@ -152,6 +176,58 @@ func generarNuevaPropuesta(prop *book.PropuestaLibro) string{
 		
 		Prop += prop.NombreLibro + "_" + strconv.Itoa(i) + " " + dAct + "\n"
 		
+		//*"nombre_archivo_chunk_0 ipDNx\n
+		// nombre_archivo_chunk_1 ipDNy\n
+		// nombre_archivo_chunk_2 ipDNz..." 
+	}
+
+	return Prop
+}
+*/
+
+func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) string{
+
+	//inicio de propuesta
+	n := prop.CantChunks
+	Prop := prop.NombreLibro + " " + n + "\n"
+
+	//arreglo con valores aleatorios de DataNodes
+	intProp := make([]int, n)
+
+	for i := 0; i < n; i++{
+		intProp[i] = rand.Intn(2)
+	}
+	
+	var dAct string
+	for i = 0; i < n; i++{ 
+		
+		if (dn == dA) {
+			switch intProp[i]{
+			case 0:
+				dAct = dB
+			case 1:
+				dAct = dC
+			}
+		}
+		if (dn == dB) {
+			switch intProp[i]{
+			case 0:
+				dAct = dA
+			case 1:
+				dAct = dC
+			}
+		}
+		if (dn == dC) {
+			switch intProp[i]{
+			case 0:
+				dAct = dA
+			case 1:
+				dAct = dB
+			}
+		}
+
+		Prop += prop.NombreLibro + "_" + strconv.Itoa(i) + " " + dAct + "\n"
+		
 		/*"nombre_archivo_chunk_0 ipDNx\n
 		 nombre_archivo_chunk_1 ipDNy\n
 		 nombre_archivo_chunk_2 ipDNz..." */
@@ -159,7 +235,6 @@ func generarNuevaPropuesta(prop *book.PropuestaLibro) string{
 
 	return Prop
 }
-
 
 
 //solo para centralizado
@@ -174,11 +249,15 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 	for {
 		if analizarPropuesta(Prop) {
 			break
+		} else{
+			dn := buscarNodoCaido()
+			Prop = nuevaPropuesta2(dn,prop)
 		}
-		Prop = generarNuevaPropuesta(prop)
 	}
 
 	escribirLogCen(Prop, prop.NombreLibro, prop.CantChunks)
+
+	return &book.ACK{Ok: "ok"}, nil
 }
 
 
@@ -264,28 +343,15 @@ func (s *server) EnviarListaLibros(ctx context.Context) *book.ListaLibros{
 }
 
 
-
+////////de aqui hacia abajo exclusion mutua centralizada - incompleto
 func exclusionMCen(){
-	var q [2]int
-	
+	var q [100]int
 }
+	
+
 
 
 func main() {
-
-//revisar si acá es el input 
-	log.Print("Ingresar tipo de algoritmo - c:centralizado / d:distribuido : ")
-
-	_, err := fmt.Scanf("%d", &tipo_al)
-
-	for (err != nil){
-
-		log.Println("Tipo ingresado inválido!\n")
-		log.Print("Ingresar tipo de algoritmo - c:centralizado / d:distribuido : ")
-		
-		_, err = fmt.Scanf("%d", &tipo_al)
-	}
-
 
 	//conexión a cliente Downloader
 	listenCD, err := net.Listen("tcp", addressCD)
@@ -305,6 +371,7 @@ func main() {
 	book.RegisterBookServiceClient(srv, &server{})
 
 	log.Fatalln(srv.Serve(listenCU))
+
 
 	//conexión a DataNodes
 
