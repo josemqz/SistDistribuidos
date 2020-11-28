@@ -8,6 +8,7 @@ import (
 	"context"
 	"math/rand"
 	"sync"
+	"strings"
 
 	"google.golang.org/grpc"
 	"github.com/josemqz/SistDistribuidos/Lab2/book"
@@ -84,7 +85,7 @@ func checkDatanode(dn string, name string){
 
 	conn, err := grpc.Dial(dn, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second)
     if err != nil {
-		log.Printf("No se pudo conectar con %v: %v", name, err)
+		log.Printf("Se detectó datanode caido %v: %v", name, err)
 		return false
     }
 	defer conn.Close()
@@ -185,7 +186,14 @@ func generarNuevaPropuesta(prop *book.PropuestaLibro) string{
 }
 */
 
-func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) string{
+
+//genera una nueva propuesta considerando solo los nodos activos
+func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, bool){
+
+	//estado de nodos
+	a := true
+	b := true
+	c := true
 
 	//inicio de propuesta
 	n := prop.CantChunks
@@ -208,6 +216,7 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) string{
 			case 1:
 				dAct = dC
 			}
+			a = false
 		}
 		if (dn == dB) {
 			switch intProp[i]{
@@ -216,6 +225,7 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) string{
 			case 1:
 				dAct = dC
 			}
+			b = false
 		}
 		if (dn == dC) {
 			switch intProp[i]{
@@ -224,26 +234,30 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) string{
 			case 1:
 				dAct = dB
 			}
+			c = false
 		}
 
 		Prop += prop.NombreLibro + "_" + strconv.Itoa(i) + " " + dAct + "\n"
 		
-		/*"nombre_archivo_chunk_0 ipDNx\n
-		 nombre_archivo_chunk_1 ipDNy\n
-		 nombre_archivo_chunk_2 ipDNz..." */
+		/*"Nombre_libro n
+		 nombre_libro_0 ipDNx\n
+		 nombre_libro_1 ipDNy\n
+		 nombre_libro_2 ipDNz..." */
 	}
 
-	return Prop
+	return Prop, a, b, c
 }
 
 
+//recibir la propuesta de un DataNode
 //solo para centralizado
-func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLibro) (*book.ACK, error){
+func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLibro) (*book.PropuestaLibro, error){
 
 //Cuando un DataNode envia una propuesta, se analiza la Propuesta
 //Si se rechaza se genera una nueva y se analiza hasta que analizarPropuesta sea true
 //Luego se escribe en el log la propuesta
 
+	var a, b, c bool
 	Prop := prop.PropuestaLibro
 
 	for {
@@ -251,13 +265,13 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 			break
 		} else{
 			dn := buscarNodoCaido()
-			Prop = nuevaPropuesta2(dn,prop)
+			Prop, a, b, c = nuevaPropuesta2(dn,prop)
 		}
 	}
 
 	escribirLogCen(Prop, prop.NombreLibro, prop.CantChunks)
 
-	return &book.ACK{Ok: "ok"}, nil
+	return &book.PropuestaLibro{Propuesta: Prop, datanodeA: a, datanodeB: b, datanodeC: c}
 }
 
 
@@ -342,11 +356,6 @@ func (s *server) EnviarListaLibros(ctx context.Context) *book.ListaLibros{
 	return &book.ListaLibros{Lista: ListaLibrosLog()}
 }
 
-
-////////de aqui hacia abajo exclusion mutua centralizada - incompleto
-func exclusionMCen(){
-	var q [100]int
-}
 	
 
 
@@ -374,14 +383,34 @@ func main() {
 
 
 	//conexión a DataNodes
+	//datanodeA
+	listenCU, err := net.Listen("tcp", dA)
+	failOnError(err, "Error de conexión con datanodeA")
 
-	//proceder según algoritmo
-	if (tipo_al == "c"){
-		recibirPropDatanode(/* ? */)
-		
-	} else{
-		escribirLogD(/* context.Context, *book.PropuestaLibro ???  */)
-	}
+	srv := grpc.NewServer()
+	book.RegisterBookServiceClient(srv, &server{})
+
+	log.Fatalln(srv.Serve(listenCU))
+
+	//datanodeB
+	listenCU, err := net.Listen("tcp", dB)
+	failOnError(err, "Error de conexión con datanodeB")
+
+	srv := grpc.NewServer()
+	book.RegisterBookServiceClient(srv, &server{})
+
+	log.Fatalln(srv.Serve(listenCU))
+	
+	//datanodeC
+	listenCU, err := net.Listen("tcp", dC)
+	failOnError(err, "Error de conexión con datanodeC")
+
+	srv := grpc.NewServer()
+	book.RegisterBookServiceClient(srv, &server{})
+
+	log.Fatalln(srv.Serve(listenCU))	
+
+
 
 }
 

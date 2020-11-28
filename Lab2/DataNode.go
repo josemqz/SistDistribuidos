@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"strconv"
 	"math/rand"
+	"strings"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -29,56 +30,213 @@ func failOnError(err error, msg string) {
 	}
 }
 
-
+//descentralizado
 func manejarConflictoDist(){
 
 	//implementar Ricart y Agrawala
 	//R&A
+	var state string
+	//On initialization
+		state = "RELEASED"
 
-	/*
-	On initialization
-		state := RELEASED
+	//To enter the section
+		state = "WANTED"							//-\
+		//Multicast request to all processes		//---> Request processing deferred here
+		//T:= request timestamp;					//_/
+		//Wait until (number of replies received = (N-1));
+		state = "HELD"
 
-	To enter the section
-		state := WANTED							//-\
-		Multicast request to all processes		//---> Request processing deferred here
-		T:= request's timestamp;				//_/
-		Wait until (number of replies received = (N-1));
-		state := HELD
-
-	On receipt of a request <T_i,p_i> at p_j (i!=j)
+	//On receipt of a request <T_i,p_i> at p_j (i!=j)
 		if (state == HELD ) or (state == WANTED and (T_j,p_j) < (T_i,p_i))
 		{
-			queue request from p_i without replying
+			//queue request from p_i without replying
 		}
 		else{
-			reply immediately to p_i
+			//reply immediately to p_i
 	}
 
-To exit the critical section
+//To exit the critical section
 	state := RELEASED
-	reply to any queued requests
-	*/
+	//reply to any queued requests
+	
+}
+
+
+func (s *server) recibirchunksDN(ctx context.Context, *book.Chunk) (*book.ACK, error){
 
 }
 
+
+func enviarChunk(chunk string, ip string){
+
+}
 
 
 //enviar chunks a otros nodos
 func distribuirChunks(dn string, prop string){
 
-	conn, err := grpc.Dial(ip, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		log.Println("no se pudo conectar: %v", err)
+	//hacer conexion
+	
+	var line []string
+	var chunk string
+
+	line = strings.Split(prop,"\n")[1:]
+
+	for info := range line {
+
+		chunk = strings.split(info, " ")
+
+		enviarChunk(chunk[0], chunk[1])
 	}
+}
+
+
+//genera una nueva propuesta considerando solo los nodos activos
+func nuevaPropuesta2(dn string, cantChunks int, nombreLibro string) (string){
+
+	//inicio de propuesta
+	Prop := nombreLibro + " " + cantChunks + "\n"
+
+	//arreglo con valores aleatorios de DataNodes
+	intProp := make([]int, cantChunks)
+
+	for i := 0; i < cantChunks; i++{
+		intProp[i] = rand.Intn(2)
+	}
+	
+	var dAct string
+	for i = 0; i < cantChunks; i++{ 
+		
+		if (dn == dB) {
+			switch intProp[i]{
+			case 0:
+				dAct = dA
+			case 1:
+				dAct = dC
+			}
+		}
+
+		if (dn == dC) {
+			switch intProp[i]{
+			case 0:
+				dAct = dA
+			case 1:
+				dAct = dB
+			}
+		}
+
+		Prop += nombreLibro + "_" + strconv.Itoa(i) + " " + dAct + "\n"
+		
+		/*"nombre_archivo_chunk_0 ipDNx\n
+		 nombre_archivo_chunk_1 ipDNy\n
+		 nombre_archivo_chunk_2 ipDNz..." */
+	}
+
+	return Prop
+}
+
+
+//verifica si hay un DataNode caido
+func checkDatanode(dn string, name string){
+
+	deadline = 2 //segundos que espera para ver si hay conexión
+
+	conn, err := grpc.Dial(dn, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second)
+    if err != nil {
+		log.Printf("No se pudo conectar con %v: %v", name, err)  // CHECK <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+		return false
+    }
 	defer conn.Close()
-	c := book.NewBookServiceClient(conn)
+	
+	c := book.NewBookServiceClient(conn) //necesario?? es solo chekear pero no aun conectar 4real
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1 * time.Second)
+	conn.Close()
+	return true
+}
+
+
+//retorna true si acepta propuesta y false si rechaza
+func analizarPropuesta(prop *book.PropuestaLibro) (bool, string){
+	
+	log.Println("Analizando la propuesta...")
+
+	//prop sabe cuales datanodes se pretenden usar en la propuesta
+	//por ejemplo, si prop.DatanodeA==true, entonces se usaría en la propuesta
+	//pero si esta caído se rechaza la propuesta
+
+	//revisa si hay un DataNode de la propuesta caído
+	if (prop.DatanodeB && !checkDatanode(dB, "datanode B")){
+		fmt.Println("Se rechaza la propuesta\n")
+		return false, dB
+	} 
+	if (prop.DatanodeC && !checkDatanode(dC, "datanode C")){
+		fmt.Println("Se rechaza la propuesta\n")
+		return false, dC
+	}
+
+	return true, ""
+}
+
+
+//aceptar o rechazar propuesta de distribución de chunks (descentralizado)
+func (s *server) RecibirPropuesta(ctx context.Context, prop *book.PropuestaLibro) (*book.RespuestaP, error){
+	
+	resp, DN := analizarPropuesta(prop)
+
+	if resp{
+		return RespuestaP{Respuesta: true}
+
+	} else{
+		return RespuestaP{Respuesta: false, DNcaido: DN}
+	}
+}
+
+
+//enviar una propuesta a otro DataNode (descentralizado)
+//retorna la respuesta de este y un DataNode caído, en caso de hallar uno
+func enviarPropuestaDN(dir string, prop *book.PropuestaLibro) (bool, string) {
+
+	//conexión
+	connDN, err := grpc.Dial(dir, grpc.WithInsecure(), grpc.WithBlock())
+	//failOnError(err, "Error en conexión a NameNode")
+	defer connDN.Close()
+	if (err != nil){
+		return false, "nil"
+	}
+
+	clientDN := book.NewBookServiceClient(connDN)
+	log.Println("Conexión realizada\n")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()
+	
+	
+	resp, DNcaido := clientDN.RecibirPropuesta(ctx, prop) //check
+	
+	connDN.close()
+	return resp, DNcaido
+}
 
-	//leer propuesta
 
+//enviar propuesta a NameNode (centralizado)
+func EnviarPropNameNode(prop *book.PropuestaLibro) string, bool, bool, bool{
+	
+	//conexión
+	connNN, err := grpc.Dial("localhost:50050", grpc.WithInsecure(), grpc.WithBlock())
+	failOnError(err,"Error en conexión a NameNode")
+	defer connNN.Close()
+	
+	clientNN := book.NewBookServiceClient(connNN)
+	log.Println("Conexión realizada\n")
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer cancel()
+	
+	//propuesta final (book.PropuestaLibro)
+	propFinal := clientNN.recibirPropDatanode(ctx, prop)
+	
+	connNN.close()
+	return propFinal.Propuesta, propFinal.DatanodeA, propFinal.DatanodeB, propFinal.DatanodeC
 }
 
 
@@ -134,28 +292,6 @@ func generarPropuesta(cantChunks int, nombreLibro string) string{
 }
 
 
-//enviar propuesta a Datanode (centralizado)
-func EnviarPropNameNode(prop *book.PropuestaLibro) error{
-
-	//conexión
-	connNN, err := grpc.Dial("localhost:50050", grpc.WithInsecure(), grpc.WithBlock())
-	failOnError(err,"Error en conexión a NameNode")
-	defer connNN.Close()
-
-	clientNN := book.NewBookServiceClient(connNN)
-	log.Println("Conexión realizada\n")
-	
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
-	defer cancel()
-
-
-	clientNN.recibirPropDatanode(ctx, prop)
-
-	connNN.close()
-	return nil
-}
-
-
 //función rpc para recibir chunks de Cliente Uploader
 func (s *server) RecibirChunks(ctx context.Context, stream book.BookService_RecibirChunksServer) (*book.ACK, error) {
 	
@@ -194,7 +330,7 @@ func (s *server) RecibirChunks(ctx context.Context, stream book.BookService_Reci
 		fmt.Println("Escribiendo chunk en disco")
 
 		//escribir en archivo
-		n, err := file.Write(EnviarPropNameNode(prop)chunk.Arch)
+		n, err := file.Write(chunk.Arch)
 		failOnError(err, "Error escribiendo chunk en archivo para reconstruir")
 		fmt.Println(n, " bytes escritos")
 
@@ -213,128 +349,52 @@ func (s *server) RecibirChunks(ctx context.Context, stream book.BookService_Reci
 	//Enviar confirmación al terminar el stream
 	END:
 
-	err = stream.SendAndClose(&book.ACK{Ok: "ok"})
+	_ = stream.SendAndClose(&book.ACK{Ok: "ok"})
 	
-//Generar propuesta y enviar
 
+//Generar propuesta, escribir en log según algoritmo y distribuir entre DataNodes
+	prop := generarPropuesta(numChunk, nombreL)
+	
 	//centralizado
 	if (tipo_al == c){
-		prop := generarPropuesta(numChunk, nombreLibro)
-		EnviarPropNameNode(prop)
+		
+		prop = EnviarPropNameNode(&book.PropuestaLibro{NombreLibro: NombreL, Propuesta: prop, CantChunks: numChunk)
+		//recibe prop, que puede ser la misma propuesta o una nueva del NameNode
+		//distribuir chunks según prop
 
 	//descentralizado
-	} else{
-		//enviar a demas pcs
-		respA, DNcaidoA := enviarPropuestaDN(dA, prop) //por mientras, hay que cambiar a futuro
-		respB, DNcaidoB := enviarPropuestaDN(dB, prop) //por mientras, hay que cambiar a futuro
+	} else {
+		
+		//enviar a demás nodos
+		respB, DNcaidoB := enviarPropuestaDN(dB, prop)
+		respC, DNcaidoC := enviarPropuestaDN(dC, prop)
+
+		//CHECK !! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+		//generar nuevas propuestas hasta que se apruebe una
+		for {
+			//DNcaidoX es "" cuando respX == true (se aprueba prop y no hay nodo caído)
+			//DNcaidoX es "nil" cuando hubo un problema de conexión (no se aprueba ni rechaza prop)
+			if !respB && (DNcaidoB != "nil") {
+				prop = propnuevaPropuesta2(DNcaidoB, numChunk, nombreLibro)
+				respB, DNcaidoB := enviarPropuestaDN(dB, prop)
+
+			} else if !respC {
+				prop = nuevaPropuesta2(DNcaidoC, numChunk, nombreLibro)
+				respC, DNcaidoC := enviarPropuestaDN(dC, prop)
+			
+			} else {
+				break
+			}
+		}
 	}
 	
-	distribuirChunks() //<<<<<<<<<
+	distribuirChunks(prop) //<<<<<<<<<
 
 	return &book.ACK{Ok: "ok"}, nil
 }
 
 
-//verifica si hay un DataNode caido
-func checkDatanode(dn string, name string){
-
-	deadline = 2 //segundos que espera para ver si hay conexión
-
-	conn, err := grpc.Dial(dn, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second)
-    if err != nil {
-		log.Printf("No se pudo conectar con %v: %v", name, err)  // CHECK <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-		return false
-    }
-	defer conn.Close()
-	
-	c := book.NewBookServiceClient(conn) //necesario?? es solo chekear pero no aun conectar 4real
-
-	conn.Close()
-	return true
-}
-
-
-func buscarNodoCaido() (string, error){
-
-	//revisa si hay un datanode caído
-	if (!checkDatanode(dA, "datanode A")){
-		return dA, nil
-	}
-	if (!checkDatanode(dB, "datanode B")){
-		return dB, nil
-	} 
-	if (!checkDatanode(dC, "datanode C")){
-		return dC, nil
-
-	} else{
-		e := "no hay nodos caidos"
-	}
-
-	return e, nil
-}
-
-
-//retorna true si acepta propuesta y false si rechaza
-func analizarPropuesta(prop *book.PropuestaLibro) (bool, int){
-	
-	log.Println("Analizando la propuesta...")
-
-	//prop sabe cuales datanodes se pretenden usar en la propuesta
-	//por ejemplo, si prop.DatanodeA==true, entonces se usaría en la propuesta
-	//pero si esta caído se rechaza la propuesta
-
-	//revisa si hay un datanode de la propuesta caído
-	if (prop.DatanodeA && !checkDatanode(dA, "datanode A")){
-		fmt.Println("Se rechaza la propuesta\n")
-		return false, 0
-	}
-	if (prop.DatanodeB && !checkDatanode(dB, "datanode B")){
-		fmt.Println("Se rechaza la propuesta\n")
-		return false, 1
-	} 
-	if (prop.DatanodeC && !checkDatanode(dC, "datanode C")){
-		fmt.Println("Se rechaza la propuesta\n")
-		return false, 2
-	}
-
-	return true, -1
-}
-
-
-//aceptar o rechazar propuesta de distribución de chunks (descentralizado)
-func (s *server) RecibirPropuesta(ctx context.Context, prop *book.PropuestaLibro) (*book.RespuestaP, error){
-	
-	resp, DN := analizarPropuesta(prop)
-
-	if resp{
-		return RespuestaP{Respuesta: true}
-
-	} else{
-		return RespuestaP{Respuesta: false, DNcaido: DN}
-	}
-}
-
-
-//enviar propuesta a otros DataNodes (descentralizado)
-func enviarPropuestaDN(dir string, prop *book.PropuestaLibro) (bool, int) {
-
-	//conexión
-	connDN, err := grpc.Dial(dir, grpc.WithInsecure(), grpc.WithBlock())
-	failOnError(err,"Error en conexión a NameNode")
-	defer connDN.Close()
-
-	clientDN := book.NewBookServiceClient(connDN)
-	log.Println("Conexión realizada\n")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
-	defer cancel()
-
-
-	resp, DNcaido := clientDN.RecibirPropuesta(ctx, prop) //check
-
-	connDN.close()
-	return resp, DNcaido
-}
+//funciones de conexión
 
 
 func main() {

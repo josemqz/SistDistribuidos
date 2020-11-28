@@ -5,6 +5,14 @@ Integrantes:
 José Miguel Quezada | 201773528-7
 Ruth Vicuña Vera    | 201673007-9
 
+Pendientes:
+
+- Datanodes:  Recibe y almacena correctamente los chunks del datanode alpha
+- C Down: Solicita (a los Data Nodes) y guarda todos los chunks que componen a un libro mediante Protocol Buffers
+- El Name Node se ejecuta en una máquina sin Data Nodes (???)
+- Exclusión mutua
+- 
+
 
 Supuestos:
 
@@ -22,3 +30,6 @@ Instrucciones:
     VM18: DataNodeA
     VM19: DataNodeB
     VM20: DataNodeC
+
+
+

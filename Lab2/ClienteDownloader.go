@@ -167,10 +167,34 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 
-	if (opcion == 1){
+	//poder ver más veces los libros disponibles
+	for (opcion == 1){
+
 		verLibros(clienteNN, ctx)
 
-	} else{
+		log.Println("-------------------------------------")
+		log.Println("  1. Ver libros disponibles          |")
+		log.Println("  2. Descargar libro				  |")
+		log.Println("-------------------------------------\n")
+		log.Print("Seleccionar opción: ")
+	
+		_, err = fmt.Scanf("%d", &opcion)
+	
+		for (err != nil) || (opcion != 1 && opcion != 2) {
+	
+			log.Println("Opción inválida\n")
+	
+			log.Println("-------------------------------------")
+			log.Println("  1. Ver libros disponibles          |")
+			log.Println("  2. Descargar libro				  |")
+			log.Println("-------------------------------------\n")
+			log.Print("Seleccionar opción: ")
+	
+			_, err = fmt.Scanf("%d", &opcion)
+		}
+	}
+
+	if (opcion == 2){
 		descargarLibro(clienteNN, ctx)
 	}
 
