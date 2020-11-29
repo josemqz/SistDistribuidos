@@ -17,6 +17,9 @@ import (
 	"github.com/josemqz/SistDistribuidos/Lab2/book"
 )
 
+dA := "" //ip maquina virtual datanode A
+dB := "" //ip maquina virtual datanode B
+dC := "" //ip maquina virtual datanode C
 
 func failOnError(err error, msg string) {
 	if (err != nil) {
@@ -44,7 +47,7 @@ func ArchivoLibro() string, string {
 
 	}
 
-	//Nombre de archivo sin extensión
+	//nombre de archivo sin extensión
 	nombreArchLibro := strings.Split(archLibro, ".")[0]
 
 	return nombreArchLibro
@@ -68,10 +71,6 @@ func subirLibro(client book.BookServiceClient, ctx context.Context, fileN string
 	//buffer de tamaño máximo 250 kB
 	buf := make([]byte, 250000)
 	
-	//Calcular cantidad de fragmentos para el archivo
-	//totalPartsNum := uint32(math.Ceil(float64(fileSize) / float64(fileChunk)))
-	//fmt.Printf("Cantidad de chunks: %d\n", totalPartsNum)
-
 	for {
 		//escribir en buffer tanto como se pueda (<= 250 kB)
 		n, err := file.Read(buf)
@@ -105,8 +104,7 @@ func subirLibro(client book.BookServiceClient, ctx context.Context, fileN string
 
 func main() {
 		
-	//escoger tipo de algoritmo
-
+//escoger tipo de algoritmo
 	var opcion int
 
 	fmt.Println("Escoger tipo de distribución")
@@ -142,16 +140,31 @@ func main() {
 	switch dn := rand.Intn(3)
 	dn {
 		case 0:
-			dir := ""
+			dir := dA
 		case 1:
-			dir := ""
+			dir := dB
 		case 2:
-			dir := ""
+			dir := dC
 	}
 
 	//conn, err := grpc.Dial(dir, grpc.WithInsecure(), grpc.WithBlock())
 	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure(), grpc.WithBlock())
 	failOnError(err,"Error en conexión a NameNode")
+	
+	//si el nodo está caído
+	if (err != nil){
+		switch dn {
+			case 0:
+				conn, err := grpc.Dial(dB, grpc.WithInsecure(), grpc.WithBlock())
+				failOnError(err,"Error en conexión a NameNode")
+			case 1:
+				conn, err := grpc.Dial(dC, grpc.WithInsecure(), grpc.WithBlock())
+				failOnError(err,"Error en conexión a NameNode")
+			case 2:
+				conn, err := grpc.Dial(dA, grpc.WithInsecure(), grpc.WithBlock())
+				failOnError(err,"Error en conexión a NameNode")
+		}
+	}
 	defer conn.Close()
 
 	client := testp.NewTestpServiceClient(conn)

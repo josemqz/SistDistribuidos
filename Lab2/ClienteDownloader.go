@@ -13,10 +13,10 @@ import (
 	"github.com/josemqz/SistDistribuidos/Lab2/book"
 )
 
-var dirNN = ""  //direccion NameNode
-var dirDN1 = "" //dirección DataNodesde PC de
-var dirDN1 = "" 
-var dirDN1 = "" 
+var dNN = ""  //NameNode
+var dA= "" 	  //DataNode
+var dB = "" 
+var dC = "" 
 
 
 func failOnError(err error, msg string) {
@@ -27,8 +27,10 @@ func failOnError(err error, msg string) {
 
 
 func verLibros(clienteNN book.BookServiceClient, ctx context.Context){
-	clienteNN.EnviarListaLibros(ctx) //string or what
-
+	
+	listaLibros := clienteNN.EnviarListaLibros(ctx) //string or what
+	fmt.Println("Lista de libros disponibles\n")
+	fmt.Println(listaLibros.Lista)
 }
 
 
@@ -52,14 +54,14 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 
 	
 	//verificar si existe carpeta con libros a descargar
-	if os.IsNotExist("Neolibros"){
+	if os.IsNotExist("Libros"){
 		log.Println("Carpeta para libros descargados no existe")
-		os.Mkdir("Neolibros")
+		os.Mkdir("Libros")
 		log.Println("Carpeta creada")
 	}
 	
 	//crear nuevo archivo donde escribir los chunks del libro
-	neoArchLibro := "./NeoLibros/" + NombreArchLibro + "_reconstruido.pdf"
+	neoArchLibro := "./Libros/" + NombreArchLibro + "_reconstruido.pdf"
 	_, err = os.Create(neoArchLibro)
 	failOnError(err, "Error creando archivo de libro reconstruido")
 
@@ -72,57 +74,102 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 	chunksInfo := clienteNN.ChunkInfoLog(ctx, &book.ChunksInfo{NombreLibro: nombreArchLibro})
 
 	dirChunks := Strings.Fields(chunksInfo.info)
-	totalPartsNum := len(dirChunks)
+	totalPartsNum := len(dirChunks) //se usa?
+	
+	//estado de DataNodes
+	a := chunksInfo.DatanodeA
+	b := chunksInfo.DatanodeB
+	c := chunksInfo.DatanodeC
 
 
 // Reunir fragmentos ~~~
 
-	//conexión a los tres nodos
+//conexión a los tres nodos
+	
+	//DN A
+	if a{
+		connA, err := grpc.Dial(dA + ":50501", grpc.WithInsecure(), grpc.WithBlock())
+		failOnError(err, "Error en conexión con DataNodeA, no se podrá descargar libro")
+		defer conn.Close()
+		
+		clienteA := book.NewBookServiceClient(connA)
+	}
+
+	//DN B
+	if b{
+		connB, err := grpc.Dial(dB + ":50502", grpc.WithInsecure(), grpc.WithBlock())
+		failOnError(err, "Error en conexión con DataNodeB, no se podrá descargar libro")
+		defer conn.Close()
+		
+		clienteB := book.NewBookServiceClient(connB)
+	}
+
+	//DN C
+	if c{
+		connC, err := grpc.Dial(dC + "50503", grpc.WithInsecure(), grpc.WithBlock())
+		failOnError(err, "Error en conexión con DataNodeC, no se podrá descargar libro")
+		defer conn.Close()
+		
+		clienteC := book.NewBookServiceClient(connC)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 
 	var writePosition int32 = 0
+	var jInfo []string
+	var archChunk string
+	var dirChunk string
+	
+	var msgChunk *book.Chunk
 
 	//for j := uint64(0); j < totalPartsNum; j++ {
 	for j in range(dirChunks){
 
-		jInfo = strings.split(j, " ") 	//definir
-		archChunk = jInfo[0] 			//definir
-		DirChunk = jInfo[1]  			//definir
+		jInfo = strings.split(j, " ")
+		archChunk = jInfo[0] 			//nombre de archivo del chunk
+		dirChunk = jInfo[1]  			//dirección de DataNode
 
-		//obtiene dirección de chunk j
-		//envía mensaje a nodo con chunk j
-		//recibe chunk y lo escribe en libro
+		//envía mensaje a nodo con chunk j y lo recibe
+		switch dirChunk{
+			case dA:
+				msgChunk = clienteA.enviarChunkDN(ctx, &book.Chunk{NombreArchivo: archChunk})
+			case dB:
+				msgChunk = clienteB.enviarChunkDN(ctx, &book.Chunk{NombreArchivo: archChunk})
+			case dC:
+				msgChunk = clienteC.enviarChunkDN(ctx, &book.Chunk{NombreArchivo: archChunk})
+			default:
+				log.Fatalf("Dirección obtenida de propuesta inválida: %s", dirChunk)
+		}
 
+		log.Println("número de chunk: ", msgChunk.NumChunk) //solo para debug
+		
+		
 		//obtener tamaño del chunk
+		chunkStat := msgChunk.Contenido.Stat()
+		chunkSize := chunkStat.Size()
 
-		// calculate the bytes size of each chunk
-		//var chunkSize int32 = chunk.Size
+		//arreglo de bytes para 
+		buf := make([]byte, chunkSize)
 
-		chunkBufferBytes := make([]byte, chunkSize)
+		log.Println("Escribiendo en byte: [", writePosition, "]")
+		writePosition += chunkSize
 
-		fmt.Println("Escribiendo en byte: [", writePosition, "] bytes")
-		writePosition = writePosition + chunkSize
-
-		// read into chunkBufferBytes
-		reader := bufio.NewReader(chunk.Contenido)
-		_, err = reader.Read(chunkBufferBytes)
+		//escribir contenido en buffer
+		reader := bufio.NewReader(msgChunk.Contenido)
+		_, err = reader.Read(buf)
 		failOnError(err, "Error escribiendo chunk en buffer")
 
-
-		n, err := file.Write(chunkBufferBytes)
+		//escribir contenido de buffer en el archivo
+		_, err := file.Write(buf)
 		failOnError(err, "Error escribiendo chunk en archivo para reconstruir")
 
 
 		file.Sync() //flush to disk
+		buf = nil
 
-		// free up the buffer for next cycle
-		// should not be a problem if the chunk size is small, but
-		// can be resource hogging if the chunk size is huge.
-		// also a good practice to clean up your own plate after eating
-
-		chunkBufferBytes = nil // reset or empty our buffer
-
-		fmt.Println("Written ", n, " bytes")
-
+		log.Println(n, " bytes escritos")
 		fmt.Println("Insertando parte [", j, "] en : ", NombreArchLibro, "_reconstruido.pdf")
 	}
 
@@ -165,7 +212,7 @@ func main() {
 	log.Println("Conexión a NameNode realizada\n")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-
+	defer cancel()
 
 	//poder ver más veces los libros disponibles
 	for (opcion == 1){

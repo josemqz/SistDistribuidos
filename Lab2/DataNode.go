@@ -30,12 +30,15 @@ func failOnError(err error, msg string) {
 	}
 }
 
-//descentralizado
+
+//distribuido
 func manejarConflictoDist(){
 
-	//implementar Ricart y Agrawala
-	//R&A
+	//Ricart y Agrawala
+	
 	var state string
+	var Ci []int
+	
 	//On initialization
 		state = "RELEASED"
 
@@ -62,37 +65,111 @@ func manejarConflictoDist(){
 }
 
 
-func (s *server) recibirchunksDN(ctx context.Context, *book.Chunk) (*book.ACK, error){
+//enviar chunk a Cliente Downloader
+func (s *server) enviarChunkDN(ctx context.Context, *book.Chunk) (*book.Chunk, error){
+	
+	file, err = os.Open("./Chunks/" + Chunk.NombreArchivo)
+	failOnError(err,"No se pudo abrir archivo de chunk a enviar a Cliente Downloader")
+	defer file.Close()
 
+	buf := make([]byte, 250000)
+	n, err := file.Read(buf)
+	failOnError(err,"No se pudo leer del archivo de chunk en buffer")
+
+	file.Close()
+	return &book.Chunk{Contenido: buf[:n]}
 }
 
 
-func enviarChunk(chunk string, ip string){
+//recibir chunks de DataNode al distribuirlos
+func (s *server) recibirChunksDN(ctx context.Context, c *book.Chunk) (*book.ACK, error){
+
+	f, err := os.OpenFile(c.NombreArchivo, os.O_WRONLY|os.O_APPEND, 0644)
+	failOnError(err, "Error creando archivo")
+	defer f.Close()
+
+
+	//obtener tamaño del chunk
+	chunkStat := c.Contenido.Stat()
+	chunkSize := chunkStat.Size()
+
+	//arreglo de bytes para traspasar chunk
+	buf := make([]byte, chunkSize)
+
+	//escribir contenido en buffer
+	reader := bufio.NewReader(c.Contenido)
+	_, err = reader.Read(buf)
+	failOnError(err, "Error escribiendo chunk recibido en buffer")
+
+	//escribir contenido de buffer en el archivo
+	_, err := f.Write(buf)
+	failOnError(err, "Error escribiendo chunk en archivo")
+
+
+	f.Sync() //flush to disk
+	f.Close()
+	buf = nil
+	fmt.Println("Escritura exitosa")
+
+	return nil
+}
+
+
+//enviar 1 chunk a otro DataNode
+func enviarChunk(archivoChunk string, ip string){
+	
+	//conexión
+	connDN, err := grpc.Dial(ip + "", grpc.WithInsecure(), grpc.WithBlock())
+	failOnError(err,"Error en conexión a DataNode")
+	defer connDN.Close()
+	
+	clientDN := book.NewBookServiceClient(connDN)
+	log.Println("Conexión a DataNode realizada\n")
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer cancel()
+
+
+	//abrir archivo a enviar
+	file, err := os.Open("./Chunks/" + archivoChunk)
+	failOnError(err,"No se pudo abrir archivo de chunk a enviar a DataNode")
+	defer file.Close()
+
+	buf := make([]byte, 250000)
+	n, err := file.Read(buf)
+	failOnError(err,"No se pudo leer del archivo de chunk en buffer")
+
+
+	okEnviar, err := clientDN.recibirChunksDN(ctx, &book.Chunk{Contenido: buf[:n], NombreArchivo: archivoChunk})
+
+	connDN.close()
+	return nil
 
 }
 
 
 //enviar chunks a otros nodos
-func distribuirChunks(dn string, prop string){
+func distribuirChunks(prop string){
 
-	//hacer conexion
-	
 	var line []string
-	var chunk string
+	var c string
 
 	line = strings.Split(prop,"\n")[1:]
 
 	for info := range line {
 
-		chunk = strings.split(info, " ")
+		c = strings.split(info, " ")
 
-		enviarChunk(chunk[0], chunk[1])
+		enviarChunk(c[0], c[1])
 	}
 }
 
 
 //genera una nueva propuesta considerando solo los nodos activos
-func nuevaPropuesta2(dn string, cantChunks int, nombreLibro string) (string){
+func nuevaPropuesta2(dn string, cantChunks int, nombreLibro string) (string, bool, bool){
+
+	b := false
+	c := false
 
 	//inicio de propuesta
 	Prop := nombreLibro + " " + cantChunks + "\n"
@@ -114,6 +191,7 @@ func nuevaPropuesta2(dn string, cantChunks int, nombreLibro string) (string){
 			case 1:
 				dAct = dC
 			}
+			b = true
 		}
 
 		if (dn == dC) {
@@ -123,6 +201,7 @@ func nuevaPropuesta2(dn string, cantChunks int, nombreLibro string) (string){
 			case 1:
 				dAct = dB
 			}
+			c = true
 		}
 
 		Prop += nombreLibro + "_" + strconv.Itoa(i) + " " + dAct + "\n"
@@ -132,11 +211,12 @@ func nuevaPropuesta2(dn string, cantChunks int, nombreLibro string) (string){
 		 nombre_archivo_chunk_2 ipDNz..." */
 	}
 
-	return Prop
+	return Prop, b, c
 }
 
 
 //verifica si hay un DataNode caido
+//name: nombre de datanode ("datanode X")
 func checkDatanode(dn string, name string){
 
 	deadline = 2 //segundos que espera para ver si hay conexión
@@ -218,8 +298,30 @@ func enviarPropuestaDN(dir string, prop *book.PropuestaLibro) (bool, string) {
 }
 
 
+//enviar propuesta a NameNode (descentralizado)
+func EnviarPropNNDes(prop *book.PropuestaLibro) {
+	//conexión
+	connNN, err := grpc.Dial("localhost:50050", grpc.WithInsecure(), grpc.WithBlock())
+	failOnError(err,"Error en conexión a NameNode")
+	defer connNN.Close()
+	
+	clientNN := book.NewBookServiceClient(connNN)
+	log.Println("Conexión realizada\n")
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer cancel()
+	
+	//propuesta final (book.PropuestaLibro)
+	ACK, err = clientNN.escribirLogDes(ctx, prop)
+	log.Println(ACK.Ok)
+	failOnError(err, "")
+	
+	connNN.close()
+}
+
+
 //enviar propuesta a NameNode (centralizado)
-func EnviarPropNameNode(prop *book.PropuestaLibro) string, bool, bool, bool{
+func EnviarPropNNCen(prop *book.PropuestaLibro) (string, bool, bool, bool){
 	
 	//conexión
 	connNN, err := grpc.Dial("localhost:50050", grpc.WithInsecure(), grpc.WithBlock())
@@ -243,12 +345,12 @@ func EnviarPropNameNode(prop *book.PropuestaLibro) string, bool, bool, bool{
 //Genera una nueva propuesta con una lista generada aleatoriamente
 //Recibe el mensaje con la propuesta original para tener
 //el nombre del libro y la cantidad de chunks
-func generarPropuesta(cantChunks int, nombreLibro string) string{
+func generarPropuesta(cantChunks int, nombreLibro string) (string, bool, bool, bool) {
 
-	//variables para saber qué nodos participan
-	var DNA = false
-	var DNB = false
-	var DNC = false
+	//estados de DataNodes
+	var a = false
+	var b = false
+	var c = false
 
 	//inicio de propuesta
 	Prop := NombreLibro + " " + cantChunks + "\n"
@@ -260,19 +362,19 @@ func generarPropuesta(cantChunks int, nombreLibro string) string{
 		intProp[i] = rand.Intn(3)
 	}
 	
-	var dAct string
+	var dAct string //dirección correspondiente 
 	for i = 0; i < cantChunks; i++{ 
 		
 		switch intProp[i]{
-		case 0:
-			dAct = dA
-			DNA = true
-		case 1:
-			dAct = dB
-			DNB = true
-		case 2:
-			dAct = dC
-			DNC = true
+			case 0:
+				dAct = dA
+				a = true
+			case 1:
+				dAct = dB
+				b = true
+			case 2:
+				dAct = dC
+				c = true
 		}
 		
 		Prop += NombreLibro + "_" + strconv.Itoa(i) + " " + dAct + "\n"
@@ -282,17 +384,18 @@ func generarPropuesta(cantChunks int, nombreLibro string) string{
 		 nombre_archivo_chunk_2 ipDNz..." */
 	}
 
-	return &book.PropuestaLibro{NombreLibro: nombreLibro, 
+	/*return &book.PropuestaLibro{NombreLibro: nombreLibro,
 								Propuesta: Prop, 
-								estadoP: false, 
+								estadoP: false,  			//es necesario?? < < < < < < < < < <
 								CantChunks: cantChunks,
-								DatanodeA: DNA,
-								DatanodeB: DNB,
-								DatanodeC: DNC}
+								DatanodeA: a,
+								DatanodeB: b,
+								DatanodeC: c}*/
+	return Prop, a, b, c
 }
 
 
-//función rpc para recibir chunks de Cliente Uploader
+//Recibir chunks de Cliente Uploader
 func (s *server) RecibirChunks(ctx context.Context, stream book.BookService_RecibirChunksServer) (*book.ACK, error) {
 	
 	//tipo de algoritmo a utilizar
@@ -320,7 +423,7 @@ func (s *server) RecibirChunks(ctx context.Context, stream book.BookService_Reci
 
 		//crear archivo de chunk
 		strNumChunk := strconv.Itoa(numChunk)
-		neoArchLibro := "./NeoLibros/" + chunk.NombreLibro + "_" + strNumChunk
+		neoArchLibro := "./Chunks/" + chunk.NombreLibro + "_" + strNumChunk
 		_, err = os.Create(neoArchLibro)
 		failOnError(err, "Error creando archivo de libro reconstruido")
 
@@ -353,42 +456,48 @@ func (s *server) RecibirChunks(ctx context.Context, stream book.BookService_Reci
 	
 
 //Generar propuesta, escribir en log según algoritmo y distribuir entre DataNodes
-	prop := generarPropuesta(numChunk, nombreL)
 	
-	//centralizado
+	//prop: propuesta; b, c: estados de DataNodes B y C
+	prop, a, b, c := generarPropuesta(numChunk, nombreL)
+
+//CENTRALIZADO
 	if (tipo_al == c){
 		
-		prop = EnviarPropNameNode(&book.PropuestaLibro{NombreLibro: NombreL, Propuesta: prop, CantChunks: numChunk)
 		//recibe prop, que puede ser la misma propuesta o una nueva del NameNode
-		//distribuir chunks según prop
+		//CHECK < < < < < < son necesarios a, b, c?
+		prop, a, b, c = EnviarPropNNCen(&book.PropuestaLibro{NombreLibro: NombreL, Propuesta: prop, CantChunks: numChunk)
 
-	//descentralizado
+//DESCENTRALIZADO
 	} else {
 		
 		//enviar a demás nodos
-		respB, DNcaidoB := enviarPropuestaDN(dB, prop)
-		respC, DNcaidoC := enviarPropuestaDN(dC, prop)
+		respB, DNcaidoB := enviarPropuestaDN(dB, &book.PropuestaLibro{Propuesta: prop, DatanodeA: a, DatanodeB: b, DatanodeC: c})
+		respC, DNcaidoC := enviarPropuestaDN(dC, &book.PropuestaLibro{Propuesta: prop, DatanodeA: a, DatanodeB: b, DatanodeC: c})
 
 		//CHECK !! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 		//generar nuevas propuestas hasta que se apruebe una
 		for {
+
 			//DNcaidoX es "" cuando respX == true (se aprueba prop y no hay nodo caído)
 			//DNcaidoX es "nil" cuando hubo un problema de conexión (no se aprueba ni rechaza prop)
 			if !respB && (DNcaidoB != "nil") {
-				prop = propnuevaPropuesta2(DNcaidoB, numChunk, nombreLibro)
-				respB, DNcaidoB := enviarPropuestaDN(dB, prop)
+				prop, b, c = nuevaPropuesta2(DNcaidoB, numChunk, nombreLibro)
+				respB, DNcaidoB := enviarPropuestaDN(dB, &book.PropuestaLibro{Propuesta: prop, DatanodeA: a, DatanodeB: b, DatanodeC: c})
 
 			} else if !respC {
-				prop = nuevaPropuesta2(DNcaidoC, numChunk, nombreLibro)
-				respC, DNcaidoC := enviarPropuestaDN(dC, prop)
+				prop, b, c = nuevaPropuesta2(DNcaidoC, numChunk, nombreLibro)
+				respC, DNcaidoC := enviarPropuestaDN(dC, &book.PropuestaLibro{Propuesta: prop, DatanodeA: a, DatanodeB: b, DatanodeC: c})
 			
 			} else {
 				break
 			}
 		}
+		
+		//enviar propuesta ya aprobada
+		enviarPropNNDes(prop)
 	}
 	
-	distribuirChunks(prop) //<<<<<<<<<
+	distribuirChunks(prop)
 
 	return &book.ACK{Ok: "ok"}, nil
 }

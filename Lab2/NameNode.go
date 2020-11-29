@@ -47,14 +47,18 @@ func failOnError(err error, msg string) {
 
 //para recibir entradas para el log
 //distribuido
-func (s *server) escribirLogD(prop *book.PropuestaLibro) (*book.ACK, error) {
+func (s *server) escribirLogDes(prop *book.PropuestaLibro) (*book.ACK, error) {
 	
 	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
-	failOnError(err, "Error abriendo log")
+	if (err != nil){
+		return &book.ACK{Ok: "error"}, errors.New("Error abriendo Log en NameNode")
+	}
     defer f.Close()
 
-    _, err2 := f.WriteString(prop.NombreLibro + " " + prop.CantChunks + "\n" + prop.Propuesta + "\n")
-	failOnError(err, "Error escribiendo en log")
+    _, err2 := f.WriteString(prop.Propuesta)
+	if (err2 != nil){
+		return &book.ACK{Ok: "error"}, errors.New("Error escribiendo en Log en NameNode")
+	}
 	
 	return &book.ACK{Ok: "listo"}, nil
 }
@@ -68,8 +72,8 @@ func escribirLogCen(prop string, nombreL string, cant int32){
 	failOnError(err, "Error abriendo log")
     defer f.Close()
 
-    _, err2 := f.WriteString(nombreL + " " + cant + "\n" + prop + "\n")
-	failOnError(err, "Error escribiendo en log")
+    _, err2 := f.WriteString(prop)
+	failOnError(err2, "Error escribiendo en log")
 
 	mutex.Unlock()
 
@@ -356,30 +360,38 @@ func (s *server) EnviarListaLibros(ctx context.Context) *book.ListaLibros{
 	return &book.ListaLibros{Lista: ListaLibrosLog()}
 }
 
+
+//conexión a cliente Downloader
+func serveCD(){
 	
-
-
-
-func main() {
-
-	//conexión a cliente Downloader
 	listenCD, err := net.Listen("tcp", addressCD)
 	failOnError(err, "Error de conexión con cliente downloader")
-
+	
 	srv := grpc.NewServer()
 	book.RegisterBookServiceClient(srv, &server{})
-
+	
 	log.Fatalln(srv.Serve(listenCD))
+}
 
 
-	//conexión a cliente Uploader
+//conexión a cliente Uploader
+func serveCU(){
+	
 	listenCU, err := net.Listen("tcp", addressCU)
 	failOnError(err, "Error de conexión con cliente downloader")
-
+	
 	srv := grpc.NewServer()
 	book.RegisterBookServiceClient(srv, &server{})
-
+	
 	log.Fatalln(srv.Serve(listenCU))
+}
+
+func serveDNA(){
+	
+}
+// < < < < < < < < <<  <	
+func main() {
+
 
 
 	//conexión a DataNodes
