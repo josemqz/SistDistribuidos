@@ -7,15 +7,55 @@ Ruth Vicuña Vera    | 201673007-9
 
 Pendientes:
 
-- Datanodes:  Recibe y almacena correctamente los chunks del datanode alpha
-- C Down: Solicita (a los Data Nodes) y guarda todos los chunks que componen a un libro mediante Protocol Buffers
 - El Name Node se ejecuta en una máquina sin Data Nodes (???)
 - Exclusión mutua
-- Conexion debe ser bilateral?
-- Verificar y cambiar puertos en cada función de conexión
+- Hacer makefiles
+- Probaaaaaaaaaar
 
+
+Supuestos:
+
+  - Puede haber hasta un máximo de 100 DataNodes en espera para la exclusión mutua centralizada.
+  - El algoritmo a utilizar (centralizado o descentralizado) será definido por input del Cliente Uploader.
+  - Si hay un DataNode caído, la nueva propuesta considerará los otros dos nodos activos.
+  - Habrá máximo un DataNode caído en cada ejecución.
+  - Clente Downloader puede pedir ver la lista de libros disponibles más de una vez seguida
+
+
+Otra información útil:
+
+
+Instrucciones:
+
+DATOS VM:
+
+    VM17: NameNode + Cliente Uploader
+    VM18: DataNodeA + Cliente Uploader
+    VM19: DataNodeB + Cliente Downloader
+    VM20: DataNodeC + Cliente Downloader
+
+    Máquina Namenode + Cliente Uploader
+        hostname:dist17
+        contraseña: EPCwrFS4
+        IP: 10.6.40.157
+
+    Máquina DataNodeA + Cliente Uploader
+        hostname:dist18
+        contraseña: L8m9s7AS
+        IP: 10.6.40.158
+
+    Máquina DataNodeB + Cliente Downloader
+        hostname:dist19
+        contraseña: VYgDPNJe
+        IP: 10.6.40.159
+
+    Máquina DataNodeC + Cliente Downloader
+        hostname:dist20
+        contraseña: Kcf25KUB
+        IP: 10.6.40.160
 
 Puertos:
+
   DNA - DNB 50500
   DNB - DNA 50501
 
@@ -38,39 +78,20 @@ Puertos:
   CD - DNB  50514
   CD - DNC  50515
 
-  CU - NN   50516
   CU - DNA  50517
   CU - DNB  50518
   CU - DNC  50519
 
 
-Supuestos:
+    $ export GO111MODULE=on
+    $ export GOROOT=/media/joseesmuyoriginal/opt/go
+    $ export GOPATH=$HOME/go
+    $ export GOBIN=$GOPATH/bin
+    $ export PATH=$PATH:$GOROOT:$GOPATH:$GOBIN:$GOROOT/bin
 
-  - Habrá un máximo de 100 DataNodes en espera para la exclusión mutua centralizada.
-  - El algoritmo a utilizar (centralizado o distribuido) será definido por input del Cliente Uploader.
-  - Si hay un datanode caído, la nueva propuesta considerará los otros dos nodos activos.
-  - (****)''''''''Habrá máximo un datanode caído en cada ejecución.
-
-
-Otra información útil:
-
-  - Cliente Uploader se ejecutará en las máquinas virtuales 17 y 18 
-  - Cliente Downloader se ejecutará en las máquinas virtuales 19 y 20
-  
-  - Clente Downloader puede pedir ver la lista de libros disponibles más de una vez seguida
-
-
-Instrucciones:
-
-    VM17: NameNode + Cliente Uploader
-    VM18: DataNodeA + Cliente Uploader
-    VM19: DataNodeB + Cliente Downloader
-    VM20: DataNodeC + Cliente Downloader
-
-    $ protoc -I testp testp/testp.proto --go_out=./testp --go-grpc_out=./testp --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative
+    $ protoc -I book book/book.proto --go_out=./book --go-grpc_out=./book --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative
 
     $ make...
-
-
+        go build -race -ldflags "-s -w" -o bin/DNA DNA.go
 
 

@@ -3,36 +3,36 @@ package main
 import (
 	"fmt"
 	"log"
+	"bufio"
 	"os"
+	"net"
 	"time"
 	"context"
 	"math/rand"
 	"sync"
 	"strings"
+	"errors"
+	"strconv"
 
 	"google.golang.org/grpc"
 	"github.com/josemqz/SistDistribuidos/Lab2/book"
 )
 
-var tipo_al string
-var deadline int32
-var name string
-
 //DEFINIR NOMBRES DE DATANODES CON IP CORRESPONDIENTES
-dA := "" 	//ip MV DataNode A
-dB := "" 	//ip MV DataNode B
-dC := "" 	//ip MV DataNode C
-dAct := ""  //ip NameNode
+var dActual = "10.6.40.157"  //ip NameNode
+var dA = "10.6.40.158" //ip maquina virtual datanode A
+var dB = "10.6.40.159" //ip maquina virtual datanode B
+var dC = "10.6.40.160" //ip maquina virtual datanode C
 
+/* test local
+var dA = "localhost"
+var dB = "localhost"
+var dC = "localhost"
+var dActual = "localhost"
+*/
 
 type server struct {
-	book.UnimplementedBoookServiceServer
-}
-
-type RegistroLog struct{  //utilizada en func logNameNode - en caso de aprobar crear mje en proto
-	nombreLibro string
-	numLibro int32
-	ipChunk string
+	book.UnimplementedBookServiceServer
 }
 
 var mutex = &sync.Mutex{}
@@ -78,31 +78,30 @@ func escribirLogCen(prop string, nombreL string, cant int32){
 	mutex.Unlock()
 
 	fmt.Println("Escritura en log exitosa")
-	return nil
 }
 
 
 //verifica si hay un DataNode caido
-func checkDatanode(dn string, name string){
+func checkDatanode(dn string, port string, name string) bool{
 
-	deadline = 2 //segundos que espera para ver si hay conexión
+	deadline := 5 //segundos que espera para ver si hay conexión
 
-	conn, err := grpc.Dial(dn, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second)
-    if err != nil {
+	connDN, err := grpc.Dial(dn + port, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second))
+    if (err != nil) {
 		log.Printf("Se detectó datanode caido %v: %v", name, err)
 		return false
     }
-	defer conn.Close()
+	defer connDN.Close()
 	
-	c := book.NewBookServiceClient(conn) //necesario?? es solo chekear pero no aun conectar 4real
+	//c := book.NewBookServiceClient(connDN) //necesario?? es solo chekear pero no aun conectar 4real
 
-	conn.Close()
+	connDN.Close()
 	return true
 }
 
 
 //retorna true si acepta propuesta y false si rechaza
-func analizarPropuesta(prop *book.PropuestaLibro) (bool, error){
+func analizarPropuesta(prop *book.PropuestaLibro) bool{
 	
 	log.Println("Analizando la propuesta...")
 
@@ -111,84 +110,40 @@ func analizarPropuesta(prop *book.PropuestaLibro) (bool, error){
 	//pero si esta caído se rechaza la propuesta
 
 	//revisa si hay un datanode de la propuesta caído
-	if (prop.DatanodeA && !checkDatanode(dA, "datanode A")){
+	if (prop.DatanodeA && !checkDatanode(dA, ":50509", "DataNode A")){
 		fmt.Println("Se rechaza la propuesta\n")
-		return false, nil
+		return false
 	}
-	if (prop.DatanodeB && !checkDatanode(dB, "datanode B")){
+	if (prop.DatanodeB && !checkDatanode(dB, ":50510", "DataNode B")){
 		fmt.Println("Se rechaza la propuesta\n")
-		return false, nil
+		return false
 	} 
-	if (prop.DatanodeC && !checkDatanode(dC, "datanode C")){
+	if (prop.DatanodeC && !checkDatanode(dC, ":50511", "DataNode C")){
 		fmt.Println("Se rechaza la propuesta\n")
-		return false, nil
+		return false
 	}
 
-	return true, nil
+	return true
 }
 
 
-func buscarNodoCaido() (string, error){
+func buscarNodoCaido() string{
 
 	//revisa si hay un datanode caído
-	if (!checkDatanode(dA, "datanode A")){
-		return dA, nil
+	if (!checkDatanode(dA, ":50509", "DataNode A")){
+		return dA
 	}
-	if (!checkDatanode(dB, "datanode B")){
-		return dB, nil
+	if (!checkDatanode(dB, ":50510", "DataNode B")){
+		return dB
 	} 
-	if (!checkDatanode(dC, "datanode C")){
-		return dC, nil
+	if (!checkDatanode(dC, ":50511", "DataNode C")){
+		return dC
 
 	} else{
-		e := "no hay nodos caidos"
+		return "no hay nodos caidos"
 	}
 
-	return e, nil
 }
-
-
-/*
-//Genera una nueva propuesta con una lista generada aleatoriamente
-//Recibe el mensaje con la propuesta original para tener
-//el nombre del libro y la cantidad de chunks
-//esta funcion considera los 3 datanodes
-
-func generarNuevaPropuesta(prop *book.PropuestaLibro) string{
-
-	//inicio de propuesta
-	n := prop.CantChunks
-	Prop := prop.NombreLibro + " " + n + "\n"
-
-	//arreglo con valores aleatorios de DataNodes
-	intProp := make([]int, n)
-
-	for i := 0; i < n; i++{
-		intProp[i] = rand.Intn(3)
-	}
-	
-	var dAct string
-	for i = 0; i < n; i++{ 
-		
-		switch intProp[i]{
-		case 0:
-			dAct = dA
-		case 1:
-			dAct = dB
-		case 2:
-			dAct = dC
-		}
-		
-		Prop += prop.NombreLibro + "_" + strconv.Itoa(i) + " " + dAct + "\n"
-		
-		//*"nombre_archivo_chunk_0 ipDNx\n
-		// nombre_archivo_chunk_1 ipDNy\n
-		// nombre_archivo_chunk_2 ipDNz..." 
-	}
-
-	return Prop
-}
-*/
 
 
 //genera una nueva propuesta considerando solo los nodos activos
@@ -201,17 +156,17 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, 
 
 	//inicio de propuesta
 	n := prop.CantChunks
-	Prop := prop.NombreLibro + " " + n + "\n"
+	Prop := prop.NombreLibro + " " + strconv.Itoa(int(n)) + "\n"
 
 	//arreglo con valores aleatorios de DataNodes
 	intProp := make([]int, n)
 
-	for i := 0; i < n; i++{
+	for i := 0; int32(i) < n; i++{
 		intProp[i] = rand.Intn(2)
 	}
 	
 	var dAct string
-	for i = 0; i < n; i++{ 
+	for i := 0; int32(i) < n; i++{ 
 		
 		if (dn == dA) {
 			switch intProp[i]{
@@ -242,30 +197,27 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, 
 		}
 
 		Prop += prop.NombreLibro + "_" + strconv.Itoa(i) + " " + dAct + "\n"
-		
-		/*"Nombre_libro n
-		 nombre_libro_0 ipDNx\n
-		 nombre_libro_1 ipDNy\n
-		 nombre_libro_2 ipDNz..." */
+
 	}
 
 	return Prop, a, b, c
 }
 
 
-//recibir la propuesta de un DataNode
-//solo para centralizado
+//recibir la propuesta de un DataNode (centralizado)
 func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLibro) (*book.PropuestaLibro, error){
 
 //Cuando un DataNode envia una propuesta, se analiza la Propuesta
 //Si se rechaza se genera una nueva y se analiza hasta que analizarPropuesta sea true
 //Luego se escribe en el log la propuesta
 
-	var a, b, c bool
-	Prop := prop.PropuestaLibro
+	Prop := prop.Propuesta
+	a := prop.DatanodeA
+	b := prop.DatanodeB
+	c := prop.DatanodeC
 
 	for {
-		if analizarPropuesta(Prop) {
+		if analizarPropuesta(&book.PropuestaLibro{Propuesta: Prop, DatanodeA: a, DatanodeB: b, DatanodeC: c}) {
 			break
 		} else{
 			dn := buscarNodoCaido()
@@ -275,12 +227,12 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 
 	escribirLogCen(Prop, prop.NombreLibro, prop.CantChunks)
 
-	return &book.PropuestaLibro{Propuesta: Prop, datanodeA: a, datanodeB: b, datanodeC: c}
+	return &book.PropuestaLibro{Propuesta: Prop, DatanodeA: a, DatanodeB: b, DatanodeC: c}, nil
 }
 
 
-//Responde al Cliente Downloader con las ubicaciones de los chunks de libro solicitado
-func localizacionChunks(nombreL string) string{
+//Responde al Cliente Downloader con las ubicaciones de los chunks del libro solicitado
+func localizacionChunks(nombreL string) (string, error){
 
 	f, err := os.Open("logdata.txt")
 	failOnError(err, "Error en abrir log")
@@ -304,7 +256,7 @@ func localizacionChunks(nombreL string) string{
 			listachunks += info[1] + " "
 			init++
 			if (init == n) {
-				return listachunks
+				return listachunks, nil
 			}
 		}
     	if (strings.Contains(t, nombreL)) {
@@ -317,18 +269,23 @@ func localizacionChunks(nombreL string) string{
 	}
 
 	if err := scanner.Err(); err != nil {
-    	log.Fatalf("No se pudo localizar chunks correctamente: %v", err)
+		log.Fatalf("No se pudo localizar chunks correctamente: %v", err)
 	}
+
+	return "Error", errors.New("obtención de ubicaciones de chunks incorrecta")
 }
 
 
 //Lee el log y retorna la lista de libros disponibles
-func ListaLibrosLog() string{
+func ListaLibrosLog() (string, error){
 	
 	var listaLibros string
 
 	f, err := os.Open("logdata.txt")
-	failOnError(err, "Error en abrir log")
+	if (err != nil){
+		f.Close()
+		return "Error en abrir log", err
+	}
 	defer f.Close()
 
 	//hace Splits por cada linea por defecto.
@@ -345,84 +302,91 @@ func ListaLibrosLog() string{
 		}
 	}
 
-	return listaLibros
+	return listaLibros, nil
 }
 
 
 //Enviar direcciones de chunks desde el Log
-func (s *server) ChunkInfoLog(ctx context.Context, libro *book.ChunksInfo) *book.ChunksInfo{
-	return &book.ChunksInfo{info: localizacionChunks(libro.NombreLibro)}
+func (s *server) ChunkInfoLog(ctx context.Context, libro *book.ChunksInfo) (*book.ChunksInfo, error){
+	
+	localizacion, err := localizacionChunks(libro.NombreLibro)
+	return &book.ChunksInfo{Info: localizacion}, err
 }
 
 
 //Envia el listado de libros disponibles a los clientes que se lo solicitan
-func (s *server) EnviarListaLibros(ctx context.Context) *book.ListaLibros{
-	return &book.ListaLibros{Lista: ListaLibrosLog()}
+func (s *server) EnviarListaLibros(ctx context.Context, ok *book.ACK) (*book.ListaLibros, error){
+	
+	lista, err := ListaLibrosLog()
+
+	if (ok.Ok == "ok") {
+		return &book.ListaLibros{Lista: lista}, err
+	}
+
+	return &book.ListaLibros{Lista: "Error en mensaje enviado a NameNode"}, errors.New("ACK corrupto")
 }
 
 
-//conexión a cliente Downloader
+// CONEXIONES
+//cliente Downloader
 func serveCD(){
 	
-	listenCD, err := net.Listen("tcp", addressCD)
+	listenCD, err := net.Listen("tcp", dActual + ":50512")
 	failOnError(err, "Error de conexión con cliente downloader")
 	
 	srv := grpc.NewServer()
-	book.RegisterBookServiceClient(srv, &server{})
+	book.RegisterBookServiceServer(srv, &server{})
 	
 	log.Fatalln(srv.Serve(listenCD))
 }
 
 
-//conexión a cliente Uploader
-func serveCU(){
-	
-	listenCU, err := net.Listen("tcp", addressCU)
-	failOnError(err, "Error de conexión con cliente downloader")
-	
-	srv := grpc.NewServer()
-	book.RegisterBookServiceClient(srv, &server{})
-	
-	log.Fatalln(srv.Serve(listenCU))
-}
-
+//DataNode A
 func serveDNA(){
-	
+
+	listenDNA, err := net.Listen("tcp", dActual + ":50506")
+	failOnError(err, "Error de conexión con DataNode A")
+
+	srv := grpc.NewServer()
+	book.RegisterBookServiceServer(srv, &server{})
+
+	log.Fatalln(srv.Serve(listenDNA))
 }
-// < < < < < < < < <<  <	
-func main() {
 
 
+//DataNode B
+func serveDNB(){
 
-	//conexión a DataNodes
-	//datanodeA
-	listenCU, err := net.Listen("tcp", dA)
-	failOnError(err, "Error de conexión con datanodeA")
+	listenDNB, err := net.Listen("tcp", dActual + ":50507")
+	failOnError(err, "Error de conexión con DataNode B")
 
 	srv := grpc.NewServer()
-	book.RegisterBookServiceClient(srv, &server{})
+	book.RegisterBookServiceServer(srv, &server{})
 
-	log.Fatalln(srv.Serve(listenCU))
+	log.Fatalln(srv.Serve(listenDNB))
+}
 
-	//datanodeB
-	listenCU, err := net.Listen("tcp", dB)
-	failOnError(err, "Error de conexión con datanodeB")
 
-	srv := grpc.NewServer()
-	book.RegisterBookServiceClient(srv, &server{})
-
-	log.Fatalln(srv.Serve(listenCU))
+//DataNode C
+func serveDNC(){
 	
-	//datanodeC
-	listenCU, err := net.Listen("tcp", dC)
-	failOnError(err, "Error de conexión con datanodeC")
+	listenDNC, err := net.Listen("tcp", dActual + ":50508")
+	failOnError(err, "Error de conexión con DataNode C")
 
 	srv := grpc.NewServer()
-	book.RegisterBookServiceClient(srv, &server{})
+	book.RegisterBookServiceServer(srv, &server{})
 
-	log.Fatalln(srv.Serve(listenCU))	
+	log.Fatalln(srv.Serve(listenDNC))
+}
 
 
+func main() {
+	
+//servers
+	go serveCD()
+	go serveDNA()
+	go serveDNB()
+	go serveDNC()
 
 }
 

@@ -14,31 +14,30 @@ message Chunk{
     string nombreArchivo = 6;
 }
 
+//para enviar direcciones de chunks a ClienteDownloader
 message ChunksInfo{
     string nombreLibro = 1;
     int32 cantChunks = 2;
     string info = 3;
 }
 
+message ExMutua{
+    string tiempo = 1; //timestamp
+    string entidad = 2; //datanode A B o C
+}
 
 message ListaLibros{
     string lista = 1;
 }
 
-//message LibroInfo{
-//    string nombreLibro = 1;
-//    int32 sizeLibro = 2;
-//}
-
 message PropuestaLibro{
     string nombreLibro = 1;
     string propuesta = 2;
-    bool estadoP = 3;       //es necesario?
-    int32 cantChunks = 4;
+    int32 cantChunks = 3;
     //si la propuesta considera usar datanode a, b y/o c
-    bool datanodeA = 5;
-    bool datanodeB = 6;
-    bool datanodeC = 7;
+    bool datanodeA = 4;
+    bool datanodeB = 5;
+    bool datanodeC = 6;
 }
 
 message RespuestaP{
@@ -53,21 +52,26 @@ message ACK{
 
 service BookService{
     
-    rpc EnviarPropuesta() returns (ACK) {}
+//DataNode
+    
+    rpc EnviarChunkDN(Chunk) returns (Chunk) {}
+    rpc RecibirChunksDN(Chunk) returns (ACK) {}
 
-    //enviar propuesta de un datanode a x 
+    rpc RecibirPropuesta(PropuestaLibro) returns (RespuestaP) {}
 
-    rpc RecibirChunk(Chunk) returns (ACK) {}
     rpc RecibirChunks(stream Chunk) returns (ACK) {}
 
 //NameNode
+
     rpc escribirLogDes(PropuestaLibro) returns (ACK) {}
-    rpc recibirPropDatanode(PropuestaLibro) returns (ACK) {}
 
-    rpc ChunkInfoLog(ChunksInfo) returns (ACK){}
-    rpc EnviarListaLibros() returns (ListaLibros) {}
+    rpc recibirPropDatanode(PropuestaLibro) returns (PropuestaLibro) {}
+
+    rpc ChunkInfoLog(ChunksInfo) returns (ChunksInfo){}
+
+    rpc EnviarListaLibros(ACK) returns (ListaLibros) {}
 
 
-    //exclusión mutua (?)
+    //exclusión mutua
 
 }

@@ -49,18 +49,22 @@ DATOS VM:
     Máquina Server/Logística
         hostname:dist17
         contraseña: EPCwrFS4
+        IP: 10.6.40.157
 
     Máquina Financiero
         hostname:dist18
         contraseña: L8m9s7AS
+        IP: 10.6.40.158
 
     Máquina Cliente
         hostname:dist19
         contraseña: VYgDPNJe
+        IP: 10.6.40.159
 
     Máquina Camiones
         hostname:dist20
         contraseña: Kcf25KUB
+        IP: 10.6.40.160
 
 
 Una vez abiertas las terminales en las máquinas virtuales, ejecutar:
