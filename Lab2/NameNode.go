@@ -1,28 +1,37 @@
 package main
 
 import (
+	"bufio"
+	"context"
+	"errors"
 	"fmt"
 	"log"
-	"bufio"
-	"os"
-	"net"
-	"time"
-	"context"
 	"math/rand"
-	"sync"
-	"strings"
-	"errors"
+	"net"
+	"os"
 	"strconv"
+	"strings"
+	"sync"
+	"time"
 
-	"google.golang.org/grpc"
 	"github.com/josemqz/SistDistribuidos/Lab2/book"
+	"google.golang.org/grpc"
 )
 
 //DEFINIR NOMBRES DE DATANODES CON IP CORRESPONDIENTES
-var dActual = "10.6.40.157"  //ip NameNode
-var dA = "10.6.40.158" //ip maquina virtual datanode A
-var dB = "10.6.40.159" //ip maquina virtual datanode B
-var dC = "10.6.40.160" //ip maquina virtual datanode C
+var dActual = "10.6.40.157" //ip NameNode
+var dA = "10.6.40.158"      //ip maquina virtual datanode A
+var dB = "10.6.40.159"      //ip maquina virtual datanode B
+var dC = "10.6.40.160"      //ip maquina virtual datanode C
+
+
+var q []int
+var busy int
+var s int
+s = 1
+var pr string
+
+
 
 /* test local
 var dA = "localhost"
@@ -35,64 +44,90 @@ type server struct {
 	book.UnimplementedBookServiceServer
 }
 
-var mutex = &sync.Mutex{}
-
 
 func failOnError(err error, msg string) {
-	if (err != nil) {
-	  log.Fatalf("%s: %s", msg, err)
+	if err != nil {
+		log.Fatalf("%s: %s", msg, err)
 	}
 }
 
+//funcion para medir el tiempo
+func timeTrack(start time.Time, name string) {
+    elapsed := time.Since(start)
+    log.Printf("tiempo %s : %s", name, elapsed)
+}
 
 //para recibir entradas para el log
 //distribuido
 func (s *server) escribirLogDes(prop *book.PropuestaLibro) (*book.ACK, error) {
-	
+
+	defer timeTrack(time.Now(), "Log descentralizado") //entrega el tiempo de ejecucion de la funcion
+
 	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
-	if (err != nil){
+	if err != nil {
 		return &book.ACK{Ok: "error"}, errors.New("Error abriendo Log en NameNode")
 	}
-    defer f.Close()
+	defer f.Close()
 
-    _, err2 := f.WriteString(prop.Propuesta)
-	if (err2 != nil){
+	_, err2 := f.WriteString(prop.Propuesta)
+	if err2 != nil {
 		return &book.ACK{Ok: "error"}, errors.New("Error escribiendo en Log en NameNode")
 	}
-	
+
 	return &book.ACK{Ok: "listo"}, nil
 }
 
 
 //centralizado
-func escribirLogCen(prop string, nombreL string, cant int32){
+func escribirLogCen(prop string, nombreL string, cant int32) {
 
-	mutex.Lock()
+	defer timeTrack(time.Now(), "Log centralizado") //entrega el tiempo de ejecucion de la funcion
+
 	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
 	failOnError(err, "Error abriendo log")
-    defer f.Close()
+	defer f.Close()
 
-    _, err2 := f.WriteString(prop)
+	_, err2 := f.WriteString(prop)
 	failOnError(err2, "Error escribiendo en log")
-
-	mutex.Unlock()
 
 	fmt.Println("Escritura en log exitosa")
 }
 
 
+func ex1(s int){
+	if s > 0 {
+		s -= 1
+	}else {
+		q = append(q,pr) //ingresa a la lista de espera
+	}
+	return nil
+}
+
+
+func ex2(s int){
+	if (len(q) == 0) {
+		s += 1
+	}else{
+		pr = q[:0]
+		q = q[1:]
+	}
+
+}
+
+
+
 //verifica si hay un DataNode caido
-func checkDatanode(dn string, port string, name string) bool{
+func checkDatanode(dn string, port string, name string) bool {
 
 	deadline := 5 //segundos que espera para ver si hay conexión
 
-	connDN, err := grpc.Dial(dn + port, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second))
-    if (err != nil) {
+	connDN, err := grpc.Dial(dn+port, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second))
+	if err != nil {
 		log.Printf("Se detectó datanode caido %v: %v", name, err)
 		return false
-    }
+	}
 	defer connDN.Close()
-	
+
 	//c := book.NewBookServiceClient(connDN) //necesario?? es solo chekear pero no aun conectar 4real
 
 	connDN.Close()
@@ -101,8 +136,8 @@ func checkDatanode(dn string, port string, name string) bool{
 
 
 //retorna true si acepta propuesta y false si rechaza
-func analizarPropuesta(prop *book.PropuestaLibro) bool{
-	
+func analizarPropuesta(prop *book.PropuestaLibro) bool {
+
 	log.Println("Analizando la propuesta...")
 
 	//prop sabe cuales datanodes se pretenden usar en la propuesta
@@ -110,15 +145,15 @@ func analizarPropuesta(prop *book.PropuestaLibro) bool{
 	//pero si esta caído se rechaza la propuesta
 
 	//revisa si hay un datanode de la propuesta caído
-	if (prop.DatanodeA && !checkDatanode(dA, ":50509", "DataNode A")){
+	if prop.DatanodeA && !checkDatanode(dA, ":50509", "DataNode A") {
 		fmt.Println("Se rechaza la propuesta\n")
 		return false
 	}
-	if (prop.DatanodeB && !checkDatanode(dB, ":50510", "DataNode B")){
+	if prop.DatanodeB && !checkDatanode(dB, ":50510", "DataNode B") {
 		fmt.Println("Se rechaza la propuesta\n")
 		return false
-	} 
-	if (prop.DatanodeC && !checkDatanode(dC, ":50511", "DataNode C")){
+	}
+	if prop.DatanodeC && !checkDatanode(dC, ":50511", "DataNode C") {
 		fmt.Println("Se rechaza la propuesta\n")
 		return false
 	}
@@ -127,19 +162,19 @@ func analizarPropuesta(prop *book.PropuestaLibro) bool{
 }
 
 
-func buscarNodoCaido() string{
+func buscarNodoCaido() string {
 
 	//revisa si hay un datanode caído
-	if (!checkDatanode(dA, ":50509", "DataNode A")){
+	if !checkDatanode(dA, ":50509", "DataNode A") {
 		return dA
 	}
-	if (!checkDatanode(dB, ":50510", "DataNode B")){
+	if !checkDatanode(dB, ":50510", "DataNode B") {
 		return dB
-	} 
-	if (!checkDatanode(dC, ":50511", "DataNode C")){
+	}
+	if !checkDatanode(dC, ":50511", "DataNode C") {
 		return dC
 
-	} else{
+	} else {
 		return "no hay nodos caidos"
 	}
 
@@ -147,7 +182,7 @@ func buscarNodoCaido() string{
 
 
 //genera una nueva propuesta considerando solo los nodos activos
-func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, bool){
+func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, bool) {
 
 	//estado de nodos
 	a := true
@@ -161,15 +196,15 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, 
 	//arreglo con valores aleatorios de DataNodes
 	intProp := make([]int, n)
 
-	for i := 0; int32(i) < n; i++{
+	for i := 0; int32(i) < n; i++ {
 		intProp[i] = rand.Intn(2)
 	}
-	
+
 	var dAct string
-	for i := 0; int32(i) < n; i++{ 
-		
-		if (dn == dA) {
-			switch intProp[i]{
+	for i := 0; int32(i) < n; i++ {
+
+		if dn == dA {
+			switch intProp[i] {
 			case 0:
 				dAct = dB
 			case 1:
@@ -177,8 +212,8 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, 
 			}
 			a = false
 		}
-		if (dn == dB) {
-			switch intProp[i]{
+		if dn == dB {
+			switch intProp[i] {
 			case 0:
 				dAct = dA
 			case 1:
@@ -186,8 +221,8 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, 
 			}
 			b = false
 		}
-		if (dn == dC) {
-			switch intProp[i]{
+		if dn == dC {
+			switch intProp[i] {
 			case 0:
 				dAct = dA
 			case 1:
@@ -205,11 +240,11 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, 
 
 
 //recibir la propuesta de un DataNode (centralizado)
-func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLibro) (*book.PropuestaLibro, error){
+func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLibro) (*book.PropuestaLibro, error) {
 
-//Cuando un DataNode envia una propuesta, se analiza la Propuesta
-//Si se rechaza se genera una nueva y se analiza hasta que analizarPropuesta sea true
-//Luego se escribe en el log la propuesta
+	//Cuando un DataNode envia una propuesta, se analiza la Propuesta
+	//Si se rechaza se genera una nueva y se analiza hasta que analizarPropuesta sea true
+	//Luego se escribe en el log la propuesta
 
 	Prop := prop.Propuesta
 	a := prop.DatanodeA
@@ -219,20 +254,29 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 	for {
 		if analizarPropuesta(&book.PropuestaLibro{Propuesta: Prop, DatanodeA: a, DatanodeB: b, DatanodeC: c}) {
 			break
-		} else{
+		} else {
 			dn := buscarNodoCaido()
-			Prop, a, b, c = nuevaPropuesta2(dn,prop)
+			Prop, a, b, c = nuevaPropuesta2(dn, prop)
 		}
 	}
 
+	//for (busy == 1){
+	//	time.Sleep(500 * time.Milisecond)
+	//}
+
+	//llamada a las funciones de exclusion mutua centralizada
+	ex1(s)
 	escribirLogCen(Prop, prop.NombreLibro, prop.CantChunks)
+	ex2(s)
+	//escribirLogCen(Prop, prop.NombreLibro, prop.CantChunks)
+
 
 	return &book.PropuestaLibro{Propuesta: Prop, DatanodeA: a, DatanodeB: b, DatanodeC: c}, nil
 }
 
 
 //Responde al Cliente Downloader con las ubicaciones de los chunks del libro solicitado
-func localizacionChunks(nombreL string) (string, error){
+func localizacionChunks(nombreL string) (string, error) {
 
 	f, err := os.Open("logdata.txt")
 	failOnError(err, "Error en abrir log")
@@ -248,18 +292,18 @@ func localizacionChunks(nombreL string) (string, error){
 	var n int
 	var mark bool
 	mark = false
-	
+
 	for scanner.Scan() {
 		t = scanner.Text()
-		if mark{
+		if mark {
 			info = strings.Fields(t)
 			listachunks += info[1] + " "
 			init++
-			if (init == n) {
+			if init == n {
 				return listachunks, nil
 			}
 		}
-    	if (strings.Contains(t, nombreL)) {
+		if strings.Contains(t, nombreL) {
 			words := strings.Fields(t) //es como split por blankspace
 			n, _ = strconv.Atoi(words[1])
 			init = 0
@@ -277,12 +321,12 @@ func localizacionChunks(nombreL string) (string, error){
 
 
 //Lee el log y retorna la lista de libros disponibles
-func ListaLibrosLog() (string, error){
-	
+func ListaLibrosLog() (string, error) {
+
 	var listaLibros string
 
 	f, err := os.Open("logdata.txt")
-	if (err != nil){
+	if err != nil {
 		f.Close()
 		return "Error en abrir log", err
 	}
@@ -292,7 +336,7 @@ func ListaLibrosLog() (string, error){
 	scanner := bufio.NewScanner(f)
 
 	for scanner.Scan() {
-		
+
 		words := strings.Fields(scanner.Text())
 
 		//si el segundo elemento en la línea es un número
@@ -307,19 +351,19 @@ func ListaLibrosLog() (string, error){
 
 
 //Enviar direcciones de chunks desde el Log
-func (s *server) ChunkInfoLog(ctx context.Context, libro *book.ChunksInfo) (*book.ChunksInfo, error){
-	
+func (s *server) ChunkInfoLog(ctx context.Context, libro *book.ChunksInfo) (*book.ChunksInfo, error) {
+
 	localizacion, err := localizacionChunks(libro.NombreLibro)
 	return &book.ChunksInfo{Info: localizacion}, err
 }
 
 
 //Envia el listado de libros disponibles a los clientes que se lo solicitan
-func (s *server) EnviarListaLibros(ctx context.Context, ok *book.ACK) (*book.ListaLibros, error){
-	
+func (s *server) EnviarListaLibros(ctx context.Context, ok *book.ACK) (*book.ListaLibros, error) {
+
 	lista, err := ListaLibrosLog()
 
-	if (ok.Ok == "ok") {
+	if ok.Ok == "ok" {
 		return &book.ListaLibros{Lista: lista}, err
 	}
 
@@ -329,22 +373,22 @@ func (s *server) EnviarListaLibros(ctx context.Context, ok *book.ACK) (*book.Lis
 
 // CONEXIONES
 //cliente Downloader
-func serveCD(){
-	
-	listenCD, err := net.Listen("tcp", dActual + ":50512")
+func serveCD() {
+
+	listenCD, err := net.Listen("tcp", dActual+":50512")
 	failOnError(err, "Error de conexión con cliente downloader")
-	
+
 	srv := grpc.NewServer()
 	book.RegisterBookServiceServer(srv, &server{})
-	
+
 	log.Fatalln(srv.Serve(listenCD))
 }
 
 
 //DataNode A
-func serveDNA(){
+func serveDNA() {
 
-	listenDNA, err := net.Listen("tcp", dActual + ":50506")
+	listenDNA, err := net.Listen("tcp", dActual+":50506")
 	failOnError(err, "Error de conexión con DataNode A")
 
 	srv := grpc.NewServer()
@@ -355,9 +399,9 @@ func serveDNA(){
 
 
 //DataNode B
-func serveDNB(){
+func serveDNB() {
 
-	listenDNB, err := net.Listen("tcp", dActual + ":50507")
+	listenDNB, err := net.Listen("tcp", dActual+":50507")
 	failOnError(err, "Error de conexión con DataNode B")
 
 	srv := grpc.NewServer()
@@ -368,9 +412,9 @@ func serveDNB(){
 
 
 //DataNode C
-func serveDNC(){
-	
-	listenDNC, err := net.Listen("tcp", dActual + ":50508")
+func serveDNC() {
+
+	listenDNC, err := net.Listen("tcp", dActual+":50508")
 	failOnError(err, "Error de conexión con DataNode C")
 
 	srv := grpc.NewServer()
@@ -381,12 +425,11 @@ func serveDNC(){
 
 
 func main() {
-	
-//servers
+
+	//servers
 	go serveCD()
 	go serveDNA()
 	go serveDNB()
 	go serveDNC()
 
 }
-

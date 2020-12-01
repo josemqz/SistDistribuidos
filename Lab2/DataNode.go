@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"time"
-	//"bufio"
 	"context"
 	"strconv"
 	"math/rand"
@@ -33,6 +32,10 @@ var dC = "localhost"
 var dActual = "localhost"
 */
 
+var ContadorMensajes int 
+var estado string
+var tiempo_req time.Time
+
 type server struct {
 	book.UnimplementedBookServiceServer
 }
@@ -43,50 +46,93 @@ func failOnError(err error, msg string) {
 	}
 }
 
+//funcion para medir el tiempo
+func timeTrack(start time.Time, name string) {
+    elapsed := time.Since(start)
+    log.Printf("tiempo %s : %s", name, elapsed)
+}
+
 
 //distribuido
 
-/*
+
 //Llama a funcion de Ricart y Agrawala con el datanode interesado en 
 //contactar NN para escribir en log
-func manejarConflictoDist(dn string){
+func RicAwla(dn string, port string, prop *book.PropuestaLibro){
 
-	t := time.Now()
-	tiempo := t.Format(“Mon Jan _2 15:04:05 2006”)
-	
-	connDN, errDN := grpc.Dial(dn, grpc.WithInsecure())
-	if errDN != nil{
-		log.Printf("No se pudo conectar a DB: %v", errDN)
+	//estado de proceso
+	estado = "RELEASED"
+
+
+	//para entrar a zona crítica
+	estado = "WANTED"
+
+	if prop.DatanodeB{
+		connDNB, errDN := grpc.Dial(dn + port, grpc.WithInsecure())
+		if errDN != nil{
+			log.Printf("No se pudo conectar a DataNode: %v", errDN)
+		}
+		defer connDN.Close()
+		
+		clientDN := book.NewBookServiceClient(connDN)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
 	}
-	defer connDN.Close()
+	
+	if prop.DatanodeC{
+		connDN, errDN := grpc.Dial(dn + port, grpc.WithInsecure())
+		if errDN != nil{
+			log.Printf("No se pudo conectar a DataNode: %v", errDN)
+		}
+		defer connDN.Close()
+		
+		clientDN := book.NewBookServiceClient(connDN)
 
-	clientDN := book.NewBookServiceClient(connDN)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
 
-	replyDN, errDN2 := clientDN.RicAwla(cxt,*//* book.ExMutua*//*)
+	//tiempo de request
+	t := time.Now()
+	tiempo_req = t.Format(“Mon Jan _2 15:04:05 2006”)
+
+	resp1, err1 := clientDNB.(ctx)
+	resp2, err2 := clientDNC.(ctx)
+
+	if resp1 && resp2{
+		
+	}
+
+
+	replyDN, errDN2 := clientDN.RequestRA(ctx,/* book.ExMutua*/)
 	if errDN2 != nil {
 		log.Printf("problema con request: %v", errDN2)
 	}
-	return nil
-}*/
+	
+}
 
-/*
-func (s *server) RicAwla(ctx context.Context, p *book.ExMutua) (*//**//*,error){
+
+func (s *server) RequestRA(ctx context.Context, p *book.ExMutua) (*book.ACK, error){
 
 	//lista de datanodes en espera para escribir ?
 
 	//func Parse(layout, value string) (Time, error)
 	t := time.Now()	
-	tiempo, et := time.Parse(time.ANSIC, p.tiempo) //mje string lo pasa a time
+	tiempo_i, et := time.Parse(time.ANSIC, p.Tiempo) //mje string lo pasa a time
 	
-	// ******** if - alguna comparacion del timestamp 
+	if (estado == "HELD") || (estado == "WANTED" && (tiempo_req < tiempo_i)){
+		//queue request from p_i without replying
+	} else{
+		//reply immediately to p_i
+	}
 
 	//
-	conn, err := grpc.Dial(dNN + *//*puerto*//*, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(dNN + ":50506", grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Printf("No se pudo conectar a Namenode: %v", err)
+		return &book.ACK{Ok: "error"}, err
 	}
 	defer conn.Close()
 
@@ -98,11 +144,13 @@ func (s *server) RicAwla(ctx context.Context, p *book.ExMutua) (*//**//*,error){
 	d, err2 := cliente.EscribirLogDes(&book.PropuestaLibro) // revisar si se puede
 	if err2 != nil {
 		log.Printf("problema con request: %v", err2)
-	}	
+		return &book.ACK{Ok: "error"}, err2
+		}	
 
+	return &book.ACK{Ok: "ok"}, nil
 	
 }
-*/
+
 	/*
 	var state string
 	var Ci []int
@@ -118,7 +166,7 @@ func (s *server) RicAwla(ctx context.Context, p *book.ExMutua) (*//**//*,error){
 		state = "HELD"
 
 	//On receipt of a request <T_i,p_i> at p_j (i!=j)
-		if (state == HELD ) or (state == WANTED and (T_j,p_j) < (T_i,p_i))
+		if (state == HELD ) || (state == WANTED && (T_j,p_j) < (T_i,p_i))
 		{
 			//queue request from p_i without replying
 		}
@@ -461,6 +509,10 @@ func generarPropuesta(cantChunks int, nombreLibro string) (string, bool, bool, b
 
 //Recibir chunks de Cliente Uploader
 func (s *server) RecibirChunks(stream book.BookService_RecibirChunksServer) error {
+
+	defer timeTrack(time.Now(), "Total") //entrega el tiempo de ejecucion de la funcion
+
+	ContadorMensajes = 0
 	
 	//tipo de algoritmo a utilizar
 	var tipo_al string
@@ -526,6 +578,7 @@ func (s *server) RecibirChunks(stream book.BookService_RecibirChunksServer) erro
 		//recibe prop, que puede ser la misma propuesta o una nueva del NameNode
 		//CHECK < < < < < < son necesarios a, b, c?
 		prop, a, b, c = EnviarPropNNCen(&book.PropuestaLibro{NombreLibro: nombreL, Propuesta: prop, CantChunks: int32(numChunk), DatanodeA: a, DatanodeB: b, DatanodeC: c})
+		ContadorMensajes += 1
 
 //DESCENTRALIZADO
 	} else {
