@@ -17,6 +17,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BookServiceClient interface {
+	RequestRA(ctx context.Context, in *ExMutua, opts ...grpc.CallOption) (*ACK, error)
 	EnviarChunkDN(ctx context.Context, in *Chunk, opts ...grpc.CallOption) (*Chunk, error)
 	RecibirChunksDN(ctx context.Context, in *Chunk, opts ...grpc.CallOption) (*ACK, error)
 	RecibirPropuesta(ctx context.Context, in *PropuestaLibro, opts ...grpc.CallOption) (*RespuestaP, error)
@@ -33,6 +34,15 @@ type bookServiceClient struct {
 
 func NewBookServiceClient(cc grpc.ClientConnInterface) BookServiceClient {
 	return &bookServiceClient{cc}
+}
+
+func (c *bookServiceClient) RequestRA(ctx context.Context, in *ExMutua, opts ...grpc.CallOption) (*ACK, error) {
+	out := new(ACK)
+	err := c.cc.Invoke(ctx, "/book.BookService/RequestRA", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *bookServiceClient) EnviarChunkDN(ctx context.Context, in *Chunk, opts ...grpc.CallOption) (*Chunk, error) {
@@ -136,6 +146,7 @@ func (c *bookServiceClient) EnviarListaLibros(ctx context.Context, in *ACK, opts
 // All implementations must embed UnimplementedBookServiceServer
 // for forward compatibility
 type BookServiceServer interface {
+	RequestRA(context.Context, *ExMutua) (*ACK, error)
 	EnviarChunkDN(context.Context, *Chunk) (*Chunk, error)
 	RecibirChunksDN(context.Context, *Chunk) (*ACK, error)
 	RecibirPropuesta(context.Context, *PropuestaLibro) (*RespuestaP, error)
@@ -151,6 +162,9 @@ type BookServiceServer interface {
 type UnimplementedBookServiceServer struct {
 }
 
+func (UnimplementedBookServiceServer) RequestRA(context.Context, *ExMutua) (*ACK, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RequestRA not implemented")
+}
 func (UnimplementedBookServiceServer) EnviarChunkDN(context.Context, *Chunk) (*Chunk, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EnviarChunkDN not implemented")
 }
@@ -186,6 +200,24 @@ type UnsafeBookServiceServer interface {
 
 func RegisterBookServiceServer(s *grpc.Server, srv BookServiceServer) {
 	s.RegisterService(&_BookService_serviceDesc, srv)
+}
+
+func _BookService_RequestRA_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExMutua)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookServiceServer).RequestRA(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/book.BookService/RequestRA",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookServiceServer).RequestRA(ctx, req.(*ExMutua))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _BookService_EnviarChunkDN_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -344,6 +376,10 @@ var _BookService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "book.BookService",
 	HandlerType: (*BookServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "RequestRA",
+			Handler:    _BookService_RequestRA_Handler,
+		},
 		{
 			MethodName: "EnviarChunkDN",
 			Handler:    _BookService_EnviarChunkDN_Handler,

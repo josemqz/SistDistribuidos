@@ -1,0 +1,8 @@
+DataNodeA:
+        export GOROOT=/usr/local/go
+        export GOPATH=$(HOME)/go
+        export GOBIN=$(GOPATH)/bin
+        export PATH=$(PATH):$(GOROOT):$(GOPATH):$(GOBIN)
+        protoc -I book --go_out=./book --go_opt=paths=source_relative --go-grpc_out=./book --go-grpc_opt=paths=source_relative book/book.proto
+        go build -race -ldflags "-s -w" -o bin/DataNodeA DataNodeA.go
+        bin/DataNodeA

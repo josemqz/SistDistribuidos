@@ -11,12 +11,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/josemqz/SistDistribuidos/Lab2/book"
 	"google.golang.org/grpc"
 )
+
 
 //DEFINIR NOMBRES DE DATANODES CON IP CORRESPONDIENTES
 var dActual = "10.6.40.157" //ip NameNode
@@ -24,27 +24,23 @@ var dA = "10.6.40.158"      //ip maquina virtual datanode A
 var dB = "10.6.40.159"      //ip maquina virtual datanode B
 var dC = "10.6.40.160"      //ip maquina virtual datanode C
 
-
-var q []int
-var busy int
-var s int
-s = 1
-var pr string
-
-
-
 /* test local
+var dActual = "localhost"
 var dA = "localhost"
 var dB = "localhost"
 var dC = "localhost"
-var dActual = "localhost"
 */
+
+var cola []string
+var aux = 1
+var proceso string
+
 
 type server struct {
 	book.UnimplementedBookServiceServer
 }
 
-
+//manejo de errores
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Fatalf("%s: %s", msg, err)
@@ -57,8 +53,8 @@ func timeTrack(start time.Time, name string) {
     log.Printf("tiempo %s : %s", name, elapsed)
 }
 
-//para recibir entradas para el log
-//distribuido
+
+//escribir en el log para algoritmo distribuido
 func (s *server) escribirLogDes(prop *book.PropuestaLibro) (*book.ACK, error) {
 
 	defer timeTrack(time.Now(), "Log descentralizado") //entrega el tiempo de ejecucion de la funcion
@@ -78,7 +74,7 @@ func (s *server) escribirLogDes(prop *book.PropuestaLibro) (*book.ACK, error) {
 }
 
 
-//centralizado
+//escribir en el log para algoritmo centralizado
 func escribirLogCen(prop string, nombreL string, cant int32) {
 
 	defer timeTrack(time.Now(), "Log centralizado") //entrega el tiempo de ejecucion de la funcion
@@ -94,26 +90,29 @@ func escribirLogCen(prop string, nombreL string, cant int32) {
 }
 
 
-func ex1(s int){
-	if s > 0 {
-		s -= 1
+//espera para exclusión mutua centralizada
+func ex1(aux int){
+
+	if aux > 0 {
+		aux -= 1
+
 	}else {
-		q = append(q,pr) //ingresa a la lista de espera
+		cola = append(cola,proceso) //ingresa a la lista de espera
 	}
-	return nil
 }
 
 
-func ex2(s int){
-	if (len(q) == 0) {
-		s += 1
+//manejo de cola para exclusión mutua centralizada
+func ex2(aux int){
+
+	if (len(cola) == 0) {
+		aux += 1
+		
 	}else{
-		pr = q[:0]
-		q = q[1:]
+		proceso = cola[0]
+		cola = cola[1:]
 	}
-
 }
-
 
 
 //verifica si hay un DataNode caido
@@ -128,13 +127,11 @@ func checkDatanode(dn string, port string, name string) bool {
 	}
 	defer connDN.Close()
 
-	//c := book.NewBookServiceClient(connDN) //necesario?? es solo chekear pero no aun conectar 4real
-
 	connDN.Close()
 	return true
 }
 
-
+//analiza propuesta
 //retorna true si acepta propuesta y false si rechaza
 func analizarPropuesta(prop *book.PropuestaLibro) bool {
 
@@ -161,10 +158,9 @@ func analizarPropuesta(prop *book.PropuestaLibro) bool {
 	return true
 }
 
-
+//revisa si hay un datanode caído
 func buscarNodoCaido() string {
 
-	//revisa si hay un datanode caído
 	if !checkDatanode(dA, ":50509", "DataNode A") {
 		return dA
 	}
@@ -261,16 +257,15 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 	}
 
 	//for (busy == 1){
-	//	time.Sleep(500 * time.Milisecond)
+	//	time.Sleep(500 * time.Millisecond)
 	//}
 
-	//llamada a las funciones de exclusion mutua centralizada
-	ex1(s)
+	//llamada a las funciones de exclusión mutua centralizada
+	ex1(aux)
 	escribirLogCen(Prop, prop.NombreLibro, prop.CantChunks)
-	ex2(s)
-	//escribirLogCen(Prop, prop.NombreLibro, prop.CantChunks)
+	ex2(aux)
 
-
+	
 	return &book.PropuestaLibro{Propuesta: Prop, DatanodeA: a, DatanodeB: b, DatanodeC: c}, nil
 }
 
@@ -304,7 +299,7 @@ func localizacionChunks(nombreL string) (string, error) {
 			}
 		}
 		if strings.Contains(t, nombreL) {
-			words := strings.Fields(t) //es como split por blankspace
+			words := strings.Fields(t) //es como split por blankspaces
 			n, _ = strconv.Atoi(words[1])
 			init = 0
 			mark = true
@@ -375,8 +370,10 @@ func (s *server) EnviarListaLibros(ctx context.Context, ok *book.ACK) (*book.Lis
 //cliente Downloader
 func serveCD() {
 
+	log.Println("Servidor Cliente Downloader esperando...")
+
 	listenCD, err := net.Listen("tcp", dActual+":50512")
-	failOnError(err, "Error de conexión con cliente downloader")
+	failOnError(err, "Error de conexión con Cliente Downloader")
 
 	srv := grpc.NewServer()
 	book.RegisterBookServiceServer(srv, &server{})
@@ -388,6 +385,8 @@ func serveCD() {
 //DataNode A
 func serveDNA() {
 
+	log.Println("Servidor DataNode A esperando...")
+	
 	listenDNA, err := net.Listen("tcp", dActual+":50506")
 	failOnError(err, "Error de conexión con DataNode A")
 
@@ -401,6 +400,8 @@ func serveDNA() {
 //DataNode B
 func serveDNB() {
 
+	log.Println("Servidor DataNode B esperando...")
+
 	listenDNB, err := net.Listen("tcp", dActual+":50507")
 	failOnError(err, "Error de conexión con DataNode B")
 
@@ -413,6 +414,8 @@ func serveDNB() {
 
 //DataNode C
 func serveDNC() {
+
+	log.Println("Servidor DataNode C esperando...")
 
 	listenDNC, err := net.Listen("tcp", dActual+":50508")
 	failOnError(err, "Error de conexión con DataNode C")
@@ -430,6 +433,6 @@ func main() {
 	go serveCD()
 	go serveDNA()
 	go serveDNB()
-	go serveDNC()
+	serveDNC()
 
 }

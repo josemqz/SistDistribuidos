@@ -18,13 +18,15 @@ var dA = "10.6.40.158" //ip maquina virtual datanode A
 var dB = "10.6.40.159" //ip maquina virtual datanode B
 var dC = "10.6.40.160" //ip maquina virtual datanode C
 
+
 /* test local
-dA := "localhost"
-dB := "localhost"
-dC := "localhost"
+var dA = "localhost"
+var dB = "localhost"
+var dC = "localhost"
 */
 
 
+//manejo de errores
 func failOnError(err error, msg string) {
 	if (err != nil) {
 		log.Fatalf("%s: %s\n", msg, err)
@@ -116,7 +118,7 @@ func main() {
 	fmt.Println("Escoger tipo de distribución")
 	fmt.Println("----------------------------")
 	fmt.Println("  1. Centralizada          |")
-	fmt.Println("  2. Descentralizada		|")
+	fmt.Println("  2. Descentralizada	|")
 	fmt.Println("----------------------------\n")
 	fmt.Print("Seleccionar opción: ")
 
@@ -129,7 +131,7 @@ func main() {
 		fmt.Println("Escoger tipo de distribución")
 		fmt.Println("----------------------------")
 		fmt.Println("  1. Centralizada          |")
-		fmt.Println("  2. Descentralizada		|")
+		fmt.Println("  2. Descentralizada	|")
 		fmt.Println("----------------------------\n")
 		fmt.Print("Seleccionar opción: ")
 
@@ -185,7 +187,7 @@ func main() {
 	}
 
 	clientDN := book.NewBookServiceClient(connDN)
-	log.Println("Conexión realizada\n")
+	log.Println("Conexión realizada con nodo (" + dir + ")\n")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer cancel()

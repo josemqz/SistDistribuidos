@@ -13,19 +13,21 @@ import (
 	"github.com/josemqz/SistDistribuidos/Lab2/book"
 )
 
+
 var dNN = "10.6.40.157" //ip namenode
 var dA = "10.6.40.158" //ip maquina virtual datanode A
 var dB = "10.6.40.159" //ip maquina virtual datanode B
 var dC = "10.6.40.160" //ip maquina virtual datanode C
 
 /* test local
-dNN := "localhost"
-dA := "localhost"
-dB := "localhost"
-dC := "localhost"
+var dNN = "localhost"
+var dA = "localhost"
+var dB = "localhost"
+var dC = "localhost"
 */
 
 
+//manejo de errores
 func failOnError(err error, msg string) {
 	if (err != nil) {
 		log.Fatalf("%s: %s\n", msg, err)
@@ -115,6 +117,11 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 	var clienteA book.BookServiceClient
 	var clienteB book.BookServiceClient
 	var clienteC book.BookServiceClient
+
+	var connA *grpc.ClientConn
+	var connB *grpc.ClientConn
+	var connC *grpc.ClientConn
+	
 	//DNA
 	if a{
 		connA, err := grpc.Dial(dA + ":50513", grpc.WithInsecure(), grpc.WithBlock())
@@ -204,6 +211,9 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 	}
 
 	file.Close()
+	if a{connA.Close()}
+	if b{connB.Close()}
+	if c{connC.Close()}
 }
 
 
@@ -273,6 +283,7 @@ func main() {
 
 	if (opcion == 2){
 		descargarLibro(clienteNN, ctx)
-	}
-
+	}	
+	
+	connNN.Close()
 }

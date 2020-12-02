@@ -9,8 +9,11 @@ Pendientes:
 
 - El Name Node se ejecuta en una máquina sin Data Nodes (???)
 - Exclusión mutua
+- Crear copias DataNode (B y C)
+- Mutex en exclusión mutua
 - Hacer makefiles
 - Probaaaaaaaaaar
+- Informe
 
 
 Supuestos:
@@ -20,7 +23,7 @@ Supuestos:
   - Si hay un DataNode caído, la nueva propuesta considerará los otros dos nodos activos.
   - Habrá máximo un DataNode caído en cada ejecución.
   - Clente Downloader puede pedir ver la lista de libros disponibles más de una vez seguida
-
+  - El contador de mensajes para las métricas del informe no considera mensajes con clientes.
 
 Otra información útil:
 

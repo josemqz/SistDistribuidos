@@ -23,7 +23,6 @@ message ChunksInfo{
 
 message ExMutua{
     string tiempo = 1; //timestamp
-    string entidad = 2; //datanode A B o C
 }
 
 message ListaLibros{
@@ -54,6 +53,8 @@ service BookService{
     
 //DataNode
     
+    rpc RequestRA(ExMutua) returns (ACK) {}
+
     rpc EnviarChunkDN(Chunk) returns (Chunk) {}
     rpc RecibirChunksDN(Chunk) returns (ACK) {}
 
