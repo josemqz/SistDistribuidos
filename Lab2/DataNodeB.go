@@ -211,7 +211,7 @@ func RicAwla(prop *book.PropuestaLibro){
 //enviar chunk a Cliente Downloader
 func (s *server) enviarChunkDN(ctx context.Context, chunk *book.Chunk) (*book.Chunk, error){
 	
-	file, err := os.Open("./Chunks/" + chunk.NombreArchivo)
+	file, err := os.Open("./DNB/Chunks/" + chunk.NombreArchivo)
 	failOnError(err, "No se pudo abrir archivo de chunk a enviar a Cliente Downloader")
 	defer file.Close()
 
@@ -287,7 +287,7 @@ func enviarChunk(archivoChunk string, ip string){
 
 
 	//abrir archivo a enviar
-	file, err := os.Open("./Chunks/" + archivoChunk)
+	file, err := os.Open("./DNB/Chunks/" + archivoChunk)
 	failOnError(err,"No se pudo abrir archivo de chunk a enviar a DataNode")
 	defer file.Close()
 
@@ -620,7 +620,7 @@ func (s *server) RecibirChunks(stream book.BookService_RecibirChunksServer) erro
 
 		//crear archivo de chunk
 		strNumChunk := strconv.Itoa(numChunk)
-		neoArchLibro := "./Chunks/" + chunk.NombreLibro + "_" + strNumChunk
+		neoArchLibro := "./DNB/Chunks/" + chunk.NombreLibro + "_" + strNumChunk
 		_, err = os.Create(neoArchLibro)
 		failOnError(err, "Error creando archivo de libro reconstruido")
 

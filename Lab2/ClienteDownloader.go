@@ -65,15 +65,15 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 
 	
 	//verificar si existe carpeta con libros a descargar
-	_, err = os.Stat("Libros")
+	_, err = os.Stat("./CD/Libros")
 	if os.IsNotExist(err){
 		log.Println("Carpeta para libros descargados no existe")
-		os.Mkdir("Libros", 0777)
+		os.Mkdir("./CD/Libros", 0777)
 		log.Println("Carpeta creada")
 	}
 	
 	//crear nuevo archivo donde escribir los chunks del libro
-	neoArchLibro := "./Libros/" + nombreArchLibro + "_reconstruido.pdf"
+	neoArchLibro := "./CD/Libros/" + nombreArchLibro + "_reconstruido.pdf"
 	_, err = os.Create(neoArchLibro)
 	failOnError(err, "Error creando archivo de libro reconstruido")
 
@@ -261,7 +261,7 @@ func main() {
 
 		log.Println("-------------------------------------")
 		log.Println("  1. Ver libros disponibles          |")
-		log.Println("  2. Descargar libro				  |")
+		log.Println("  2. Descargar libro                 |")
 		log.Println("-------------------------------------\n")
 		log.Print("Seleccionar opción: ")
 	
@@ -273,7 +273,7 @@ func main() {
 	
 			log.Println("-------------------------------------")
 			log.Println("  1. Ver libros disponibles          |")
-			log.Println("  2. Descargar libro				  |")
+			log.Println("  2. Descargar libro                 |")
 			log.Println("-------------------------------------\n")
 			log.Print("Seleccionar opción: ")
 	

@@ -8,9 +8,6 @@ Ruth Vicuña Vera    | 201673007-9
 Pendientes:
 
 - El Name Node se ejecuta en una máquina sin Data Nodes (???)
-- Exclusión mutua
-- Crear copias DataNode (B y C)
-- Mutex en exclusión mutua
 - Hacer makefiles
 - Probaaaaaaaaaar
 - Informe
@@ -22,13 +19,12 @@ Supuestos:
   - El algoritmo a utilizar (centralizado o descentralizado) será definido por input del Cliente Uploader.
   - Si hay un DataNode caído, la nueva propuesta considerará los otros dos nodos activos.
   - Habrá máximo un DataNode caído en cada ejecución.
-  - Clente Downloader puede pedir ver la lista de libros disponibles más de una vez seguida
+  - Clente Downloader puede pedir ver la lista de libros disponibles más de una vez seguida.
   - El contador de mensajes para las métricas del informe no considera mensajes con clientes.
+
 
 Otra información útil:
 
-
-Instrucciones:
 
 DATOS VM:
 
@@ -36,6 +32,7 @@ DATOS VM:
     VM18: DataNodeA + Cliente Uploader
     VM19: DataNodeB + Cliente Downloader
     VM20: DataNodeC + Cliente Downloader
+
 
     Máquina Namenode + Cliente Uploader
         hostname:dist17
@@ -56,6 +53,36 @@ DATOS VM:
         hostname:dist20
         contraseña: Kcf25KUB
         IP: 10.6.40.160
+
+
+Instrucciones:
+
+- Abrir por lo menos 5 terminales para ejecutar los 4 nodos y un cliente
+
+$ cd SistDistribuidos/Lab2/bin    //desde la carpeta $HOME en las VMs y en los 5 terminales
+
+
+//Local José
+$ export GO111MODULE=on
+$ export GOROOT=/media/joseesmuyoriginal/opt/go
+$ export GOPATH=$HOME/go
+$ export GOBIN=$GOPATH/bin
+$ export PATH=$PATH:$GOROOT:$GOPATH:$GOBIN:$GOROOT/bin
+
+//VM
+$ export GO111MODULE=on \
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+export GOBIN=$GOPATH/bin
+export PATH=$PATH:$GOROOT:$GOPATH:$GOBIN:$GOROOT/bin
+
+
+protoc -I book book/book.proto --go_out=./book --go-grpc_out=./book --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative
+
+$ go build -race -ldflags "-s -w" -o bin/DNA/bin DataNodeA.go
+
+go get github.com/golang/protobuf/{proto,protoc-gen-go}
+
 
 Puertos:
 
@@ -84,17 +111,3 @@ Puertos:
   CU - DNA  50517
   CU - DNB  50518
   CU - DNC  50519
-
-
-    $ export GO111MODULE=on
-    $ export GOROOT=/media/joseesmuyoriginal/opt/go
-    $ export GOPATH=$HOME/go
-    $ export GOBIN=$GOPATH/bin
-    $ export PATH=$PATH:$GOROOT:$GOPATH:$GOBIN:$GOROOT/bin
-
-    $ protoc -I book book/book.proto --go_out=./book --go-grpc_out=./book --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative
-
-    $ make...
-        go build -race -ldflags "-s -w" -o bin/DNA DNA.go
-
-

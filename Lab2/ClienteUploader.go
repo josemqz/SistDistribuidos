@@ -41,7 +41,7 @@ func ArchivoLibro() string {
 
 	log.Println("Nombre de archivo del libro a subir (incluyendo extensión): ")
 	_, _ = fmt.Scanf("%s", &archLibro)
-	_, err := os.Stat("./Libros/" + archLibro)
+	_, err := os.Stat("./CU/Libros/" + archLibro)
 
 	//en caso que no exista el archivo
 	for os.IsNotExist(err){
@@ -49,7 +49,7 @@ func ArchivoLibro() string {
 		log.Println("Archivo no existe")
 		log.Println("Nombre de archivo del libro a registrar: ")
 		_, _ = fmt.Scanf("%s", &archLibro)
-		_, err = os.Stat("./Libros/" + archLibro)
+		_, err = os.Stat("./CU/Libros/" + archLibro)
 
 	}
 
@@ -151,12 +151,21 @@ func main() {
 	dn := rand.Intn(3)
 	switch dn {
 		case 0:
+			
+			fmt.Println("DataNode A escogido")
+			
 			dir = dA
 			port = ":50517"
 		case 1:
+			
+			fmt.Println("DataNode B escogido")
+			
 			dir = dB
 			port = ":50518"
 		case 2:
+
+			fmt.Println("DataNode C escogido")
+			
 			dir = dC
 			port = ":50519"
 	}
@@ -195,7 +204,7 @@ func main() {
 
 	//nombre de archivo
 	nombreLibro := ArchivoLibro()
-	nombreArch := "./Libros/" + nombreLibro + ".pdf"
+	nombreArch := "./CU/Libros/" + nombreLibro + ".pdf"
 
 
 	//subir libro

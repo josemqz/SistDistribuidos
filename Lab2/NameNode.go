@@ -59,7 +59,7 @@ func (s *server) escribirLogDes(prop *book.PropuestaLibro) (*book.ACK, error) {
 
 	defer timeTrack(time.Now(), "Log descentralizado") //entrega el tiempo de ejecucion de la funcion
 
-	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile("./NN/logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return &book.ACK{Ok: "error"}, errors.New("Error abriendo Log en NameNode")
 	}
@@ -79,7 +79,7 @@ func escribirLogCen(prop string, nombreL string, cant int32) {
 
 	defer timeTrack(time.Now(), "Log centralizado") //entrega el tiempo de ejecucion de la funcion
 
-	f, err := os.OpenFile("logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile("./NN/logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
 	failOnError(err, "Error abriendo log")
 	defer f.Close()
 
@@ -273,7 +273,7 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 //Responde al Cliente Downloader con las ubicaciones de los chunks del libro solicitado
 func localizacionChunks(nombreL string) (string, error) {
 
-	f, err := os.Open("logdata.txt")
+	f, err := os.Open("./NN/logdata.txt")
 	failOnError(err, "Error en abrir log")
 	defer f.Close()
 
@@ -320,7 +320,7 @@ func ListaLibrosLog() (string, error) {
 
 	var listaLibros string
 
-	f, err := os.Open("logdata.txt")
+	f, err := os.Open("./NN/logdata.txt")
 	if err != nil {
 		f.Close()
 		return "Error en abrir log", err
