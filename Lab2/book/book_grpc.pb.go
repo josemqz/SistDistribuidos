@@ -108,7 +108,7 @@ func (x *bookServiceRecibirChunksClient) CloseAndRecv() (*ACK, error) {
 
 func (c *bookServiceClient) EscribirLogDes(ctx context.Context, in *PropuestaLibro, opts ...grpc.CallOption) (*ACK, error) {
 	out := new(ACK)
-	err := c.cc.Invoke(ctx, "/book.BookService/escribirLogDes", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/book.BookService/EscribirLogDes", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (c *bookServiceClient) EscribirLogDes(ctx context.Context, in *PropuestaLib
 
 func (c *bookServiceClient) RecibirPropDatanode(ctx context.Context, in *PropuestaLibro, opts ...grpc.CallOption) (*PropuestaLibro, error) {
 	out := new(PropuestaLibro)
-	err := c.cc.Invoke(ctx, "/book.BookService/recibirPropDatanode", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/book.BookService/RecibirPropDatanode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -393,11 +393,11 @@ var _BookService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _BookService_RecibirPropuesta_Handler,
 		},
 		{
-			MethodName: "escribirLogDes",
+			MethodName: "EscribirLogDes",
 			Handler:    _BookService_EscribirLogDes_Handler,
 		},
 		{
-			MethodName: "recibirPropDatanode",
+			MethodName: "RecibirPropDatanode",
 			Handler:    _BookService_RecibirPropDatanode_Handler,
 		},
 		{

@@ -251,7 +251,7 @@ func main() {
 	clienteNN := book.NewBookServiceClient(connNN)
 	log.Println("Conexión a NameNode realizada\n")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5) * time.Second)
 	defer cancel()
 
 	//poder ver más veces los libros disponibles

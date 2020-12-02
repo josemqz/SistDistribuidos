@@ -112,6 +112,8 @@ func subirLibro(client book.BookServiceClient, ctx context.Context, fileN string
 
 func main() {
 		
+	rand.Seed(time.Now().Unix())
+
 //escoger tipo de algoritmo
 	var opcion int
 

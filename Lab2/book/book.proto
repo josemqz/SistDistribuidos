@@ -64,9 +64,9 @@ service BookService{
 
 //NameNode
 
-    rpc escribirLogDes(PropuestaLibro) returns (ACK) {}
+    rpc EscribirLogDes(PropuestaLibro) returns (ACK) {}
 
-    rpc recibirPropDatanode(PropuestaLibro) returns (PropuestaLibro) {}
+    rpc RecibirPropDatanode(PropuestaLibro) returns (PropuestaLibro) {}
 
     rpc ChunkInfoLog(ChunksInfo) returns (ChunksInfo){}
 
