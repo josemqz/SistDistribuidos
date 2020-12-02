@@ -50,7 +50,7 @@ func failOnError(err error, msg string) {
 //funcion para medir el tiempo
 func timeTrack(start time.Time, name string) {
     elapsed := time.Since(start)
-    log.Printf("tiempo %s : %s", name, elapsed)
+    log.Printf("Tiempo %s : %s", name, elapsed)
 }
 
 
@@ -85,9 +85,9 @@ func escribirLogCen(prop string, nombreL string, cant int32) {
 	defer f.Close()
 
 	_, err2 := f.WriteString(prop)
-	failOnError(err2, "Error escribiendo en log")
+	failOnError(err2, "Error escribiendo en log\n")
 
-	fmt.Println("Escritura en log exitosa")
+	log.Println("Escritura en log exitosa\n")
 }
 
 
@@ -278,12 +278,14 @@ func (s *server) RecibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 }
 
 
-//Responde al Cliente Downloader con las ubicaciones de los chunks del libro solicitado
+//responde al Cliente Downloader con las ubicaciones de los chunks del libro solicitado
 func localizacionChunks(nombreL string) (string, error) {
 
 	f, err := os.Open("./NN/logdata.txt")
 	failOnError(err, "Error en abrir log")
 	defer f.Close()
+
+	log.Println("Obteniendo ubicaciones de chunks del libro", nombreL)
 
 	// hace Splits por cada linea por defecto.
 	scanner := bufio.NewScanner(f)
@@ -293,20 +295,29 @@ func localizacionChunks(nombreL string) (string, error) {
 	var t string
 	var init int
 	var n int
-	var mark bool
-	mark = false
+	var mark = false
 
 	for scanner.Scan() {
+
 		t = scanner.Text()
+		
+		//si ya encontró el nombre del libro, itera n veces sobre las siguientes líneas
 		if mark {
+
 			info = strings.Fields(t)
 			listachunks += info[1] + " "
 			init++
+
 			if init == n {
+				f.Close()
 				return listachunks, nil
 			}
-		}
-		if strings.Contains(t, nombreL) {
+		
+		//si encuentra el nombre del libro
+		} else if strings.Contains(t, nombreL){
+
+			log.Println("Libro encontrado!")
+			
 			words := strings.Fields(t) //es como split por blankspaces
 			n, _ = strconv.Atoi(words[1])
 			init = 0
@@ -319,7 +330,8 @@ func localizacionChunks(nombreL string) (string, error) {
 		log.Fatalf("No se pudo localizar chunks correctamente: %v", err)
 	}
 
-	return "Error", errors.New("obtención de ubicaciones de chunks incorrecta")
+	f.Close()
+	return "Error", errors.New("Obtención de ubicaciones de chunks incorrecta")
 }
 
 
@@ -357,6 +369,7 @@ func ListaLibrosLog() (string, error) {
 func (s *server) ChunkInfoLog(ctx context.Context, libro *book.ChunksInfo) (*book.ChunksInfo, error) {
 
 	localizacion, err := localizacionChunks(libro.NombreLibro)
+	
 	return &book.ChunksInfo{Info: localizacion}, err
 }
 

@@ -24,12 +24,12 @@ var dA = "10.6.40.158"      //ip maquina virtual datanode A
 var dB = "10.6.40.159"      //ip maquina virtual datanode B
 var dC = "10.6.40.160"      //ip maquina virtual datanode C
 
-/* test local
-var dActual = "localhost"
+// test local
+/*var dActual = "localhost"
 var dA = "localhost"
 var dB = "localhost"
-var dC = "localhost"
-*/
+var dC = "localhost"*/
+
 
 var cola []string
 var aux = 1
@@ -50,16 +50,17 @@ func failOnError(err error, msg string) {
 //funcion para medir el tiempo
 func timeTrack(start time.Time, name string) {
     elapsed := time.Since(start)
-    log.Printf("tiempo %s : %s", name, elapsed)
+    log.Printf("Tiempo %s : %s", name, elapsed)
 }
 
 
 //escribir en el log para algoritmo distribuido
-func (s *server) escribirLogDes(prop *book.PropuestaLibro) (*book.ACK, error) {
+func (s *server) EscribirLogDes(ctx context.Context, prop *book.PropuestaLibro) (*book.ACK, error) {
 
 	defer timeTrack(time.Now(), "Log descentralizado") //entrega el tiempo de ejecucion de la funcion
+			
+	f, err := os.OpenFile("./NN/logdata.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
-	f, err := os.OpenFile("./NN/logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return &book.ACK{Ok: "error"}, errors.New("Error abriendo Log en NameNode")
 	}
@@ -79,14 +80,14 @@ func escribirLogCen(prop string, nombreL string, cant int32) {
 
 	defer timeTrack(time.Now(), "Log centralizado") //entrega el tiempo de ejecucion de la funcion
 
-	f, err := os.OpenFile("./NN/logdata.txt", os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile("./NN/logdata.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	failOnError(err, "Error abriendo log")
 	defer f.Close()
 
 	_, err2 := f.WriteString(prop)
-	failOnError(err2, "Error escribiendo en log")
+	failOnError(err2, "Error escribiendo en log\n")
 
-	fmt.Println("Escritura en log exitosa")
+	log.Println("Escritura en log exitosa\n")
 }
 
 
@@ -110,7 +111,11 @@ func ex2(aux int){
 		
 	}else{
 		proceso = cola[0]
-		cola = cola[1:]
+		if (len(cola)>1) {
+			cola = cola[1:]
+		}else{
+			cola = cola[:0]
+		}
 	}
 }
 
@@ -118,9 +123,9 @@ func ex2(aux int){
 //verifica si hay un DataNode caido
 func checkDatanode(dn string, port string, name string) bool {
 
-	deadline := 5 //segundos que espera para ver si hay conexión
+	deadline := 100 //segundos que espera para ver si hay conexión
 
-	connDN, err := grpc.Dial(dn+port, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second))
+	connDN, err := grpc.Dial(dn + port, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second))
 	if err != nil {
 		log.Printf("Se detectó datanode caido %v: %v", name, err)
 		return false
@@ -130,6 +135,7 @@ func checkDatanode(dn string, port string, name string) bool {
 	connDN.Close()
 	return true
 }
+
 
 //analiza propuesta
 //retorna true si acepta propuesta y false si rechaza
@@ -155,8 +161,10 @@ func analizarPropuesta(prop *book.PropuestaLibro) bool {
 		return false
 	}
 
+	fmt.Println("Se acepta la propuesta\n")
 	return true
 }
+
 
 //revisa si hay un datanode caído
 func buscarNodoCaido() string {
@@ -173,7 +181,6 @@ func buscarNodoCaido() string {
 	} else {
 		return "no hay nodos caidos"
 	}
-
 }
 
 
@@ -231,12 +238,13 @@ func nuevaPropuesta2(dn string, prop *book.PropuestaLibro) (string, bool, bool, 
 
 	}
 
+	fmt.Println("Nueva propuesta producida")
 	return Prop, a, b, c
 }
 
 
 //recibir la propuesta de un DataNode (centralizado)
-func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLibro) (*book.PropuestaLibro, error) {
+func (s *server) RecibirPropDatanode(ctx context.Context, prop *book.PropuestaLibro) (*book.PropuestaLibro, error) {
 
 	//Cuando un DataNode envia una propuesta, se analiza la Propuesta
 	//Si se rechaza se genera una nueva y se analiza hasta que analizarPropuesta sea true
@@ -270,12 +278,14 @@ func (s *server) recibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 }
 
 
-//Responde al Cliente Downloader con las ubicaciones de los chunks del libro solicitado
+//responde al Cliente Downloader con las ubicaciones de los chunks del libro solicitado
 func localizacionChunks(nombreL string) (string, error) {
 
 	f, err := os.Open("./NN/logdata.txt")
 	failOnError(err, "Error en abrir log")
 	defer f.Close()
+
+	log.Println("Obteniendo ubicaciones de chunks del libro", nombreL)
 
 	// hace Splits por cada linea por defecto.
 	scanner := bufio.NewScanner(f)
@@ -285,20 +295,29 @@ func localizacionChunks(nombreL string) (string, error) {
 	var t string
 	var init int
 	var n int
-	var mark bool
-	mark = false
+	var mark = false
 
 	for scanner.Scan() {
+
 		t = scanner.Text()
+		
+		//si ya encontró el nombre del libro, itera n veces sobre las siguientes líneas
 		if mark {
+
 			info = strings.Fields(t)
 			listachunks += info[1] + " "
 			init++
+
 			if init == n {
+				f.Close()
 				return listachunks, nil
 			}
-		}
-		if strings.Contains(t, nombreL) {
+		
+		//si encuentra el nombre del libro
+		} else if strings.Contains(t, nombreL){
+
+			log.Println("Libro encontrado!")
+			
 			words := strings.Fields(t) //es como split por blankspaces
 			n, _ = strconv.Atoi(words[1])
 			init = 0
@@ -311,7 +330,8 @@ func localizacionChunks(nombreL string) (string, error) {
 		log.Fatalf("No se pudo localizar chunks correctamente: %v", err)
 	}
 
-	return "Error", errors.New("obtención de ubicaciones de chunks incorrecta")
+	f.Close()
+	return "Error", errors.New("Obtención de ubicaciones de chunks incorrecta")
 }
 
 
@@ -349,6 +369,7 @@ func ListaLibrosLog() (string, error) {
 func (s *server) ChunkInfoLog(ctx context.Context, libro *book.ChunksInfo) (*book.ChunksInfo, error) {
 
 	localizacion, err := localizacionChunks(libro.NombreLibro)
+	
 	return &book.ChunksInfo{Info: localizacion}, err
 }
 

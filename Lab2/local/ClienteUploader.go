@@ -45,9 +45,11 @@ func ArchivoLibro() string {
 
 	//en caso que no exista el archivo
 	for os.IsNotExist(err){
-
+		
+		archLibro = ""
 		log.Println("Archivo no existe")
 		log.Println("Nombre de archivo del libro a registrar: ")
+		
 		_, _ = fmt.Scanf("%s", &archLibro)
 		_, err = os.Stat("./CU/Libros/" + archLibro)
 
@@ -98,7 +100,7 @@ func subirLibro(client book.BookServiceClient, ctx context.Context, fileN string
 		stream.Send(&book.Chunk{
 			Algoritmo: tipo_al,
 			NombreLibro: bookN,
-			//NumChunk: 
+			//NumChunk,
 			Contenido: buf[:n]}) //con [:n] se envía <= 250 kB
 	}
 
@@ -120,7 +122,7 @@ func main() {
 	fmt.Println("Escoger tipo de distribución")
 	fmt.Println("----------------------------")
 	fmt.Println("  1. Centralizada          |")
-	fmt.Println("  2. Descentralizada	|")
+	fmt.Println("  2. Descentralizada       |")
 	fmt.Println("----------------------------\n")
 	fmt.Print("Seleccionar opción: ")
 
@@ -133,7 +135,7 @@ func main() {
 		fmt.Println("Escoger tipo de distribución")
 		fmt.Println("----------------------------")
 		fmt.Println("  1. Centralizada          |")
-		fmt.Println("  2. Descentralizada	|")
+		fmt.Println("  2. Descentralizada       |")
 		fmt.Println("----------------------------\n")
 		fmt.Print("Seleccionar opción: ")
 
@@ -152,18 +154,21 @@ func main() {
 	//escoger datanode al que enviar chunks
 	dn := rand.Intn(3)
 	switch dn {
+
 		case 0:
 			
 			fmt.Println("DataNode A escogido")
 			
 			dir = dA
 			port = ":50517"
+
 		case 1:
 			
 			fmt.Println("DataNode B escogido")
 			
 			dir = dB
 			port = ":50518"
+			
 		case 2:
 
 			fmt.Println("DataNode C escogido")
@@ -174,23 +179,37 @@ func main() {
 
 	//conn, err := grpc.Dial(dir, grpc.WithInsecure(), grpc.WithBlock())
 	connDN, err := grpc.Dial(dir + port, grpc.WithInsecure(), grpc.WithBlock())
-	failOnError(err,"Error en conexión a NameNode")
 	defer connDN.Close()
 	
 	//si el nodo está caído, intenta conectarse con otro arbitrario.
 	//según los supuestos solo un nodo puede caerse, por lo 
 	//que solo se maneja una vez un error de conexión
 	if (err != nil){
+	
+		log.Printf("%s: Error en conexión a DataNode", err)
+
 		switch dn {
+
 			case 0:
+				
+				fmt.Println("DataNode B escogido")
+				
 				connDN, err = grpc.Dial(dB + ":50518", grpc.WithInsecure(), grpc.WithBlock())
 				failOnError(err,"Error en conexión a NameNode")
 				defer connDN.Close()
+			
 			case 1:
+				
+				fmt.Println("DataNode C escogido")
+
 				connDN, err = grpc.Dial(dC + ":50519", grpc.WithInsecure(), grpc.WithBlock())
 				failOnError(err,"Error en conexión a NameNode")
 				defer connDN.Close()
+			
 			case 2:
+				
+				fmt.Println("DataNode A escogido")
+				
 				connDN, err = grpc.Dial(dA + ":50517", grpc.WithInsecure(), grpc.WithBlock())
 				failOnError(err,"Error en conexión a NameNode")
 				defer connDN.Close()

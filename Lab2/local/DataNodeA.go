@@ -28,6 +28,7 @@ var dC = "10.6.40.160" //ip maquina virtual datanode C
 */
 
 // test local
+var local = true
 var dNN = "localhost"
 var dA = "localhost"
 var dB = "localhost"
@@ -216,32 +217,39 @@ func RicAwla(prop *book.PropuestaLibro){
 
 
 //enviar chunk a Cliente Downloader
-func (s *server) enviarChunkDN(ctx context.Context, chunk *book.Chunk) (*book.Chunk, error){
+func (s *server) EnviarChunkDN(ctx context.Context, chunk *book.Chunk) (*book.Chunk, error){
 	
+	log.Println("Abriendo chunk para enviar a Cliente Downloader")
+
 	file, err := os.Open("./DNA/Chunks/" + chunk.NombreArchivo)
-	failOnError(err, "No se pudo abrir archivo de chunk a enviar a Cliente Downloader")
+	if (err != nil){
+		return &book.Chunk{}, err
+	}
 	defer file.Close()
 
 	buf := make([]byte, 250000)
 	n, err := file.Read(buf)
-	failOnError(err, "No se pudo leer del archivo de chunk en buffer")
+
+	if (err != nil){
+		file.Close()
+		return &book.Chunk{}, err
+	}
 
 	file.Close()
-	return &book.Chunk{Contenido: buf[:n]}, nil
+	log.Println("Enviando chunk a Cliente Downloader")
+	return &book.Chunk{Contenido: buf[:n], NumChunk: chunk.NumChunk}, nil
 }
 
 
 //recibir chunks de DataNode al ser distribuidos
 func (s *server) RecibirChunksDN(ctx context.Context, c *book.Chunk) (*book.ACK, error){
 
-	f, err := os.OpenFile("./DNB/Chunks/" + c.NombreArchivo, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	f, err := os.OpenFile("./DNA/Chunks/" + c.NombreArchivo, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	failOnError(err, "Error creando archivo")
 	defer f.Close()
 
 
 	//obtener tamaño del chunk
-	/*chunkStat := c.Contenido.Stat()
-	chunkSize := chunkStat.Size()*/
 	chunkSize := len(c.Contenido)
 
 	//arreglo de bytes para traspasar chunk
@@ -260,7 +268,7 @@ func (s *server) RecibirChunksDN(ctx context.Context, c *book.Chunk) (*book.ACK,
 	f.Sync() //flush to disk
 	f.Close()
 	buf = nil
-	fmt.Println("Escritura en chunk exitosa")
+	fmt.Println("Escritura en chunk exitosa\n")
 
 	mutexCA.Lock()
 	contadorMensajesA +=1 // SUMA UN MENSAJE PARA METRICAS DEL INFORME
@@ -277,6 +285,7 @@ func enviarChunk(archivoChunk string, ip string){
 
 	if (ip == dB){
 		port = ":50500"
+
 	} else if (ip == dC){
 		port = ":50502"
 	}
@@ -298,20 +307,24 @@ func enviarChunk(archivoChunk string, ip string){
 	failOnError(err,"No se pudo abrir archivo de chunk a enviar a DataNode")
 	defer file.Close()
 
+	//buffer para enviar bytes leídos del archivo
 	buf := make([]byte, 250000)
 	n, err := file.Read(buf)
 	failOnError(err,"No se pudo leer del archivo de chunk en buffer")
 
 
-	log.Println("bla1")
-	log.Println("Distribuyendo chunk a otro DataNode\n")	
+	log.Println("Distribuyendo chunk a otro DataNode\n")
 	_, err = clientDN.RecibirChunksDN(ctx, &book.Chunk{Contenido: buf[:n], NombreArchivo: archivoChunk})
 	failOnError(err, "Error distribuyendo chunks a DataNode")
-	log.Println("bla2")
+
+	
+	//eliminar archivo
+	file.Close()
+	err = os.Remove("./DNA/Chunks/" + archivoChunk)
+	failOnError(err, "No se pudo eliminar archivo de chunk")
 
 	buf = nil
 	connDN.Close()
-	file.Close()
 
 	mutexCA.Lock()
 	contadorMensajesA +=1 // SUMA UN MENSAJE PARA METRICAS DEL INFORME
@@ -333,8 +346,10 @@ func distribuirChunks(prop string){
 
 		c = strings.Fields(info)
 		
-		//parámetros: nombre de archivo de chunk y dirección de nodo
-		enviarChunk(c[0], c[1])
+		if (c[1] != dActual) || local{  // DEBUG < < < < < < < < < < < < < < < <
+			//parámetros: nombre de archivo de chunk y dirección de nodo
+			enviarChunk(c[0], c[1])
+		}
 	}
 }
 

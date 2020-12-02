@@ -26,6 +26,7 @@ var dA = "10.6.40.158" //ip maquina virtual datanode A
 var dC = "10.6.40.160" //ip maquina virtual datanode C
 
 /* test local
+var local = true
 var dNN = "localhost"
 var dA = "localhost"
 var dB = "localhost"
@@ -201,33 +202,47 @@ func RicAwla(prop *book.PropuestaLibro){
 
 	//terminar
 	estado = "RELEASED"
+	
 	//sacar nodos de cola
-	colaRA = colaRA[1:]
+	if (len(colaRA) >= 1){
+		colaRA = colaRA[1:]
+	} else if (len(colaRA) == 1){
+		colaRA = colaRA[:0]
+	}
 
 	mutexLocal.Unlock()
 }
 
 
 //enviar chunk a Cliente Downloader
-func (s *server) enviarChunkDN(ctx context.Context, chunk *book.Chunk) (*book.Chunk, error){
+func (s *server) EnviarChunkDN(ctx context.Context, chunk *book.Chunk) (*book.Chunk, error){
 	
+	log.Println("Abriendo chunk para enviar a Cliente Downloader")
+
 	file, err := os.Open("./DNB/Chunks/" + chunk.NombreArchivo)
-	failOnError(err, "No se pudo abrir archivo de chunk a enviar a Cliente Downloader")
+	if (err != nil){
+		return &book.Chunk{}, err
+	}
 	defer file.Close()
 
 	buf := make([]byte, 250000)
 	n, err := file.Read(buf)
-	failOnError(err, "No se pudo leer del archivo de chunk en buffer")
+
+	if (err != nil){
+		file.Close()
+		return &book.Chunk{}, err
+	}
 
 	file.Close()
-	return &book.Chunk{Contenido: buf[:n]}, nil
+	log.Println("Enviando chunk a Cliente Downloader")
+	return &book.Chunk{Contenido: buf[:n], NumChunk: chunk.NumChunk}, nil
 }
 
 
 //recibir chunks de DataNode al ser distribuidos
-func (s *server) recibirChunksDN(ctx context.Context, c *book.Chunk) (*book.ACK, error){
+func (s *server) RecibirChunksDN(ctx context.Context, c *book.Chunk) (*book.ACK, error){
 
-	f, err := os.OpenFile(c.NombreArchivo, os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile("./DNB/Chunks/" + c.NombreArchivo, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	failOnError(err, "Error creando archivo")
 	defer f.Close()
 
@@ -236,6 +251,7 @@ func (s *server) recibirChunksDN(ctx context.Context, c *book.Chunk) (*book.ACK,
 	/*chunkStat := c.Contenido.Stat()
 	chunkSize := chunkStat.Size()*/
 	chunkSize := len(c.Contenido)
+	fmt.Println("tamaño chunk:", chunkSize)
 
 	//arreglo de bytes para traspasar chunk
 	buf := make([]byte, chunkSize)
@@ -253,7 +269,7 @@ func (s *server) recibirChunksDN(ctx context.Context, c *book.Chunk) (*book.ACK,
 	f.Sync() //flush to disk
 	f.Close()
 	buf = nil
-	fmt.Println("Escritura exitosa")
+	fmt.Println("Escritura en chunk exitosa\n")
 
 	mutexCB.Lock()
 	contadorMensajesB +=1 // SUMA UN MENSAJE PARA METRICAS DEL INFORME
@@ -280,9 +296,9 @@ func enviarChunk(archivoChunk string, ip string){
 	defer connDN.Close()
 	
 	clientDN := book.NewBookServiceClient(connDN)
-	log.Println("Conexión a DataNode realizada\n")
+	log.Println("Conexión a DataNode realizada")
 	
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(100) * time.Second)
 	defer cancel()
 
 
@@ -291,17 +307,24 @@ func enviarChunk(archivoChunk string, ip string){
 	failOnError(err,"No se pudo abrir archivo de chunk a enviar a DataNode")
 	defer file.Close()
 
+	//buffer para enviar bytes leídos del archivo
 	buf := make([]byte, 250000)
 	n, err := file.Read(buf)
 	failOnError(err,"No se pudo leer del archivo de chunk en buffer")
 
 
+	log.Println("Distribuyendo chunk a otro DataNode\n")
 	_, err = clientDN.RecibirChunksDN(ctx, &book.Chunk{Contenido: buf[:n], NombreArchivo: archivoChunk})
 	failOnError(err, "Error distribuyendo chunks a DataNode")
+	
+	
+	//eliminar archivo
+	file.Close()
+	err = os.Remove("./DNB/Chunks/" + archivoChunk)
+	failOnError(err, "No se pudo eliminar archivo de chunk")
 
 	buf = nil
 	connDN.Close()
-	file.Close()
 
 	mutexCB.Lock()
 	contadorMensajesB +=1 // SUMA UN MENSAJE PARA METRICAS DEL INFORME
@@ -315,14 +338,19 @@ func distribuirChunks(prop string){
 	var line []string
 	var c []string
 
-	line = strings.Split(prop,"\n")[1:]
+	line = strings.Split(prop[:(len(prop)-1)],"\n")[1:] //what if está considerando el último elemento como un ""
 
+	fmt.Println(line)
+
+	
 	for _, info := range line {
 
 		c = strings.Fields(info)
-		
-		//parámetros: nombre de archivo de chunk y dirección de nodo
-		enviarChunk(c[0], c[1])
+
+		if (c[1] != dActual){ //|| local{  // DEBUG < < < < < < < < < < < < < < < <
+			//parámetros: nombre de archivo de chunk y dirección de nodo
+			enviarChunk(c[0], c[1])
+		}
 	}
 }
 
@@ -389,7 +417,7 @@ func nuevaPropuesta2(dn string, cantChunks int, nombreLibro string) (string, boo
 //name: nombre de datanode ("datanode X")
 func checkDatanode(dn string, port string, name string) bool{
 
-	deadline := 5 //segundos que espera para ver si hay conexión
+	deadline := 10 //segundos que espera para ver si hay conexión
 
 	connDN, err := grpc.Dial(dn + port, grpc.WithInsecure(), grpc.WithTimeout(time.Duration(deadline)*time.Second))
     if (err != nil) {
@@ -429,6 +457,7 @@ func analizarPropuesta(prop *book.PropuestaLibro) (bool, string){
 		return false, dC
 	}
 
+	fmt.Println("Se acepta la propuesta\n")
 	return true, ""
 }
 
@@ -482,21 +511,23 @@ func enviarPropNNDes(prop *book.PropuestaLibro) {
 	clientNN := book.NewBookServiceClient(connNN)
 	log.Println("Conexión realizada\n")
 	
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Second)
 	defer cancel()
 
 	mutexCB.Lock()
 	contadorMensajesB +=1 // SUMA UN MENSAJE PARA METRICAS DEL INFORME
 	mutexCB.Unlock()
 	
+	
 	//propuesta final (book.PropuestaLibro)
 	ACK, err := clientNN.EscribirLogDes(ctx, prop)
-	log.Println(ACK.Ok)
 	failOnError(err, "")
+
+	log.Println(ACK.Ok)
 	
 	connNN.Close()
 
-	log.Println("Cantidad de mensajes: s%", contadorMensajesB)
+	log.Println("Cantidad de mensajes:", contadorMensajesB)
 }
 
 
@@ -511,7 +542,7 @@ func EnviarPropNNCen(prop *book.PropuestaLibro) (string){
 	clientNN := book.NewBookServiceClient(connNN)
 	log.Println("Conexión realizada\n")
 	
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(100) * time.Second)
 	defer cancel()
 	
 	mutexCB.Lock()
@@ -524,7 +555,7 @@ func EnviarPropNNCen(prop *book.PropuestaLibro) (string){
 	
 	connNN.Close()
 
-	log.Println("Cantidad de mensajes: s%", contadorMensajesB)
+	log.Println("Cantidad de mensajes:", contadorMensajesB)
 
 	return propFinal.Propuesta
 }

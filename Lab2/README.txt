@@ -11,7 +11,7 @@ Pendientes:
 - Hacer makefiles
 - Probaaaaaaaaaar
 - Informe
-
+- HAY QUE BORRAR LOS CHUNKS AL DISTRIBUIRLOS os.Rm o algo así aah 
 
 Supuestos:
 
