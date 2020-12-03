@@ -5,28 +5,14 @@ Integrantes:
 José Miguel Quezada | 201773528-7
 Ruth Vicuña Vera    | 201673007-9
 
-
 Supuestos:
 
-  - El usuario ingresará correctamente los datos.
+  - Puede haber hasta un máximo de 100 DataNodes en espera para la exclusión mutua centralizada.
   - El algoritmo a utilizar (centralizado o descentralizado) será definido por input del Cliente Uploader.
   - Si hay un DataNode caído, la nueva propuesta considerará los otros dos nodos activos.
   - Habrá máximo un DataNode caído en cada ejecución.
   - Clente Downloader puede pedir ver la lista de libros disponibles más de una vez seguida.
   - El contador de mensajes para las métricas del informe no considera mensajes con clientes.
-
-
-Otra información útil:
-
-  - En caso de aparecer un error de permiso denegado, probar ejecutar desde la carpeta Lab2:
-    $ chmod -R 777 bin
-    
-  - En caso de haber problemas de conexión probar ejecutar: 
-    $ sudo systemctl stop firewalld
-  
-  - Para ver capturas del funcionamiento del programa, ingresar a:
-    https://drive.google.com/drive/folders/1szN9ojEgKQ_XrMKRxICQFrQqPxE8J1Hu?usp=sharing
-
 
 DATOS VM:
 
@@ -59,48 +45,41 @@ DATOS VM:
 
 Instrucciones:
 
-  - En la carpeta Lab2 está todo lo relacionado al Laboratorio 2.
-    Allí se encuentran los programas en .go, la carpeta del archivo .proto "book"
-    y la carpeta bin, destinada a la ejecución de los programas y almacenamiento 
-    del log, los chunks y los libros.
+- En la carpeta Lab2 está todo lo relacionado al Laboratorio 2
+Allí se encuentran los programas en .go, una carpeta para hacer pruebas locales, la 
+carpeta del servicio gRPC "book"
+- Abrir por lo menos 5 terminales para ejecutar los 4 nodos y un cliente
 
-  - Abrir 6 terminales para ejecutar los 4 nodos y 2 clientes y 
-    moverse hacia bin según el siguiente comando:
+$ cd SistDistribuidos/Lab2/bin    //desde la carpeta $HOME en las VMs y en los 5 terminales
 
-    $ cd SistDistribuidos/Lab2/bin     //desde la carpeta $HOME en las VMs y en las 6 terminales
+$ make ...
 
-
-  - Ejecutar nodos:
-
-VM17:
-$ cd NN
-$ make 
-
-VM18:
-$ cd DNA
-$ make
-
-VM19:
-$ cd DNB
-$ make
-
-VM20:
-$ cd DNC
-$ make
+- En caso de imprimir un error de permiso denegado, probar ejecutar
+$ chmod -R 777 bin
 
 
-  - Ejecutar clientes
+//Local José
+$ export GO111MODULE=on
+$ export GOROOT=/media/joseesmuyoriginal/opt/go
+$ export GOPATH=$HOME/go
+$ export GOBIN=$GOPATH/bin
+$ export PATH=$PATH:$GOROOT:$GOPATH:$GOBIN:$GOROOT/bin
 
-VM17/18 (Upload):
-$ cd CU
-$ make
+//VM
+$ export GO111MODULE=on \
+export GOROOT=/usr/local/go \
+export GOPATH=$HOME/go
+$ export GOBIN=$GOPATH/bin
+$ export PATH=$PATH:$GOROOT:$GOPATH:$GOBIN:$GOROOT/bin
 
-VM19/20 (Download):
-$ cd CD
-$ make
+
+protoc -I book book/book.proto --go_out=./book --go-grpc_out=./book --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative
+
+$ go build -race -ldflags "-s -w" -o bin/DNA/bin DataNodeA.go
+
+go get github.com/golang/protobuf/{proto,protoc-gen-go}
 
 
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Puertos:
 
   DNA - DNB 50500

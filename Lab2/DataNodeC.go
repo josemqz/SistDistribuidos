@@ -226,7 +226,7 @@ func (s *server) EnviarChunkDN(ctx context.Context, chunk *book.Chunk) (*book.Ch
 	
 	log.Println("Abriendo chunk para enviar a Cliente Downloader")
 	
-	file, err := os.Open("./DNC/Chunks/" + chunk.NombreArchivo)
+	file, err := os.Open("./Chunks/" + chunk.NombreArchivo)
 	defer file.Close()
 	if (err != nil){
 		return &book.Chunk{}, err
@@ -241,14 +241,14 @@ func (s *server) EnviarChunkDN(ctx context.Context, chunk *book.Chunk) (*book.Ch
 
 	file.Close()
 	log.Println("Enviando chunk a Cliente Downloader")
-	return &book.Chunk{Contenido: buf[:n], NumChunk: chunk.NumChunk}, nil
+	return &book.Chunk{Contenido: buf[:n]}, nil
 }
 
 
 //recibir chunks de DataNode al ser distribuidos
 func (s *server) RecibirChunksDN(ctx context.Context, c *book.Chunk) (*book.ACK, error){
 
-	f, err := os.OpenFile("./DNC/Chunks/" + c.NombreArchivo, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	f, err := os.OpenFile("./Chunks/" + c.NombreArchivo, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	failOnError(err, "Error creando archivo")
 	defer f.Close()
 
@@ -308,7 +308,7 @@ func enviarChunk(archivoChunk string, ip string){
 
 
 	//abrir archivo a enviar
-	file, err := os.Open("./DNC/Chunks/" + archivoChunk)
+	file, err := os.Open("./Chunks/" + archivoChunk)
 	failOnError(err,"No se pudo abrir archivo de chunk a enviar a DataNode")
 	defer file.Close()
 
@@ -325,7 +325,7 @@ func enviarChunk(archivoChunk string, ip string){
 
 	//eliminar archivo
 	file.Close()
-	err = os.Remove("./DNC/Chunks/" + archivoChunk)
+	err = os.Remove("./Chunks/" + archivoChunk)
 	failOnError(err, "No se pudo eliminar archivo de chunk")
 	
 	buf = nil
@@ -343,9 +343,12 @@ func distribuirChunks(prop string){
 	var line []string
 	var c []string
 
-	line = strings.Split(prop[:(len(prop)-1)],"\n")[1:] //what if está considerando el último elemento como un ""
-
-	fmt.Println(line)
+	//split a propuesta por "/n"
+	//se omite el último elemento, ya que es un string vacío, 
+	//producido por el último /n del string prop
+	//y se omite el primer elemento de line, 
+	//ya que se trata del título del libro y la cantidad de chunks
+	line = strings.Split(prop[:(len(prop)-1)],"\n")[1:]
 
 	for _, info := range line {
 
@@ -653,7 +656,7 @@ func (s *server) RecibirChunks(stream book.BookService_RecibirChunksServer) erro
 
 		//crear archivo de chunk
 		strNumChunk := strconv.Itoa(numChunk)
-		neoArchLibro := "./DNC/Chunks/" + chunk.NombreLibro + "_" + strNumChunk
+		neoArchLibro := "./Chunks/" + chunk.NombreLibro + "_" + strNumChunk
 		_, err = os.Create(neoArchLibro)
 		failOnError(err, "Error creando archivo de libro reconstruido")
 

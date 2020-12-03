@@ -66,21 +66,21 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 	fmt.Println("Comenzando descarga de", nombreArchLibro, "\n")
 	
 	//verificar si existe carpeta con libros a descargar
-	_, err = os.Stat("./CD/Libros")
+	_, err = os.Stat("./Libros")
 	if os.IsNotExist(err){
 		log.Println("Carpeta para libros descargados no existe")
-		os.Mkdir("./CD/Libros", 0777)
+		os.Mkdir("./Libros", 0777)
 		log.Println("Carpeta creada")
 	}
 	
 	//crear nuevo archivo donde escribir los chunks del libro
-	neoArchLibro := "./CD/Libros/" + nombreArchLibro + "_reconstruido.pdf"
-	file, err := os.OpenFile(neoArchLibro, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
+	neoArchLibro := "./Libros/" + nombreArchLibro + "_reconstruido.pdf"
+	file, err := os.OpenFile(neoArchLibro, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	failOnError(err, "Error abriendo archivo de libro reconstruido")
 
 	//solicitar ubicaciones de chunks al namenode
 	chunksInfo, err := clienteNN.ChunkInfoLog(ctx, &book.ChunksInfo{NombreLibro: nombreArchLibro})
-	failOnError(err, "Error obteniendo direcciones del NameNode")
+	failOnError(err, "Error obteniendo direcciones del NameNode (quizás no está en Log)")
 	fmt.Println("Ubicaciones de chunks obtenidas")
 
 	dirChunks := strings.Fields(chunksInfo.Info)
@@ -124,7 +124,7 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 		
 		fmt.Println("Conectando a DataNode A\n")
 		
-		connA, err := grpc.Dial(dA + ":50513", grpc.WithInsecure(), grpc.WithBlock())
+		connA, err = grpc.Dial(dA + ":50513", grpc.WithInsecure(), grpc.WithTimeout(80 * time.Second))
 		failOnError(err, "Error en conexión con DataNode A, no se podrá descargar libro")
 		defer connA.Close()
 		
@@ -136,7 +136,7 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 		
 		fmt.Println("Conectando a DataNode B\n")
 		
-		connB, err := grpc.Dial(dB + ":50514", grpc.WithInsecure(), grpc.WithBlock())
+		connB, err = grpc.Dial(dB + ":50514", grpc.WithInsecure(), grpc.WithTimeout(80 * time.Second))
 		failOnError(err, "Error en conexión con DataNode B, no se podrá descargar libro")
 		defer connB.Close()
 		
@@ -148,7 +148,7 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 		
 		fmt.Println("Conectando a DataNode C\n")
 		
-		connC, err := grpc.Dial(dC + "50515", grpc.WithInsecure(), grpc.WithBlock())
+		connC, err = grpc.Dial(dC + ":50515", grpc.WithInsecure(), grpc.WithTimeout(80 * time.Second))
 		failOnError(err, "Error en conexión con DataNode C, no se podrá descargar libro")
 		defer connC.Close()
 		
@@ -171,18 +171,23 @@ func descargarLibro(clienteNN book.BookServiceClient, ctx context.Context){
 
 		//envía mensaje a nodo con chunk j y lo recibe
 		switch dirChunk{
+
 			case dA:
-				msgChunk, _ = clienteA.EnviarChunkDN(ctx, &book.Chunk{NombreArchivo: archChunk, NumChunk: int32(i)})
+				msgChunk, err = clienteA.EnviarChunkDN(ctx, &book.Chunk{NombreArchivo: archChunk})
+				failOnError(err, "Error en envío de un chunk desde un Datanode")
+
 			case dB:
-				msgChunk, _ = clienteB.EnviarChunkDN(ctx, &book.Chunk{NombreArchivo: archChunk, NumChunk: int32(i)})
+				msgChunk, err = clienteB.EnviarChunkDN(ctx, &book.Chunk{NombreArchivo: archChunk})
+				failOnError(err, "Error en envío de un chunk desde un Datanode")
+
 			case dC:
-				msgChunk, _ = clienteC.EnviarChunkDN(ctx, &book.Chunk{NombreArchivo: archChunk, NumChunk: int32(i)})
+				msgChunk, err = clienteC.EnviarChunkDN(ctx, &book.Chunk{NombreArchivo: archChunk})
+				failOnError(err, "Error en envío de un chunk desde un Datanode")
+
 			default:
 				log.Fatalf("Dirección obtenida de propuesta inválida: %s", dirChunk)
 		}
 
-		log.Println("Número de chunk: ", msgChunk.NumChunk) //solo para debug
-		
 		
 		//obtener tamaño del chunk
 		chunkSize := int32(len(msgChunk.Contenido))

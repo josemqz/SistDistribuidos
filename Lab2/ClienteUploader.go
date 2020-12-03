@@ -41,7 +41,7 @@ func ArchivoLibro() string {
 
 	log.Println("Nombre de archivo del libro a subir (incluyendo extensión): ")
 	_, _ = fmt.Scanf("%s", &archLibro)
-	_, err := os.Stat("./CU/Libros/" + archLibro)
+	_, err := os.Stat("./Libros/" + archLibro)
 
 	//en caso que no exista el archivo
 	for os.IsNotExist(err){
@@ -51,7 +51,7 @@ func ArchivoLibro() string {
 		log.Println("Nombre de archivo del libro a registrar: ")
 		
 		_, _ = fmt.Scanf("%s", &archLibro)
-		_, err = os.Stat("./CU/Libros/" + archLibro)
+		_, err = os.Stat("./Libros/" + archLibro)
 
 	}
 
@@ -151,6 +151,7 @@ func main() {
 
 	var dir string
 	var port string
+
 	//escoger datanode al que enviar chunks
 	dn := rand.Intn(3)
 	switch dn {
@@ -177,8 +178,7 @@ func main() {
 			port = ":50519"
 	}
 
-	//conn, err := grpc.Dial(dir, grpc.WithInsecure(), grpc.WithBlock())
-	connDN, err := grpc.Dial(dir + port, grpc.WithInsecure(), grpc.WithBlock())
+	connDN, err := grpc.Dial(dir + port, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10 * time.Second))
 	defer connDN.Close()
 	
 	//si el nodo está caído, intenta conectarse con otro arbitrario.
@@ -192,26 +192,26 @@ func main() {
 
 			case 0:
 				
-				fmt.Println("DataNode B escogido")
+				fmt.Println("Conexión a DataNode B")
 				
 				connDN, err = grpc.Dial(dB + ":50518", grpc.WithInsecure(), grpc.WithBlock())
-				failOnError(err,"Error en conexión a NameNode")
+				failOnError(err,"Error en conexión a DataNode")
 				defer connDN.Close()
 			
 			case 1:
 				
-				fmt.Println("DataNode C escogido")
+				fmt.Println("Conexión a DataNode C")
 
 				connDN, err = grpc.Dial(dC + ":50519", grpc.WithInsecure(), grpc.WithBlock())
-				failOnError(err,"Error en conexión a NameNode")
+				failOnError(err,"Error en conexión a DataNode")
 				defer connDN.Close()
 			
 			case 2:
 				
-				fmt.Println("DataNode A escogido")
+				fmt.Println("Conexión a DataNode A")
 				
 				connDN, err = grpc.Dial(dA + ":50517", grpc.WithInsecure(), grpc.WithBlock())
-				failOnError(err,"Error en conexión a NameNode")
+				failOnError(err,"Error en conexión a DataNode")
 				defer connDN.Close()
 		}
 	}
@@ -219,13 +219,13 @@ func main() {
 	clientDN := book.NewBookServiceClient(connDN)
 	log.Println("Conexión realizada con nodo (" + dir + ")\n")
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(300) * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(100) * time.Second)
 	defer cancel()
 
 
 	//nombre de archivo
 	nombreLibro := ArchivoLibro()
-	nombreArch := "./CU/Libros/" + nombreLibro + ".pdf"
+	nombreArch := "./Libros/" + nombreLibro + ".pdf"
 
 
 	//subir libro

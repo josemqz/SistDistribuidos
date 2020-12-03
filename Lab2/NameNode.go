@@ -50,7 +50,7 @@ func failOnError(err error, msg string) {
 //funcion para medir el tiempo
 func timeTrack(start time.Time, name string) {
     elapsed := time.Since(start)
-    log.Printf("Tiempo %s : %s", name, elapsed)
+    log.Printf("Tiempo %s: %s", name, elapsed)
 }
 
 
@@ -59,7 +59,7 @@ func (s *server) EscribirLogDes(ctx context.Context, prop *book.PropuestaLibro) 
 
 	defer timeTrack(time.Now(), "Log descentralizado") //entrega el tiempo de ejecucion de la funcion
 			
-	f, err := os.OpenFile("./NN/logdata.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	f, err := os.OpenFile("./logdata.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
 	if err != nil {
 		return &book.ACK{Ok: "error"}, errors.New("Error abriendo Log en NameNode")
@@ -80,7 +80,7 @@ func escribirLogCen(prop string, nombreL string, cant int32) {
 
 	defer timeTrack(time.Now(), "Log centralizado") //entrega el tiempo de ejecucion de la funcion
 
-	f, err := os.OpenFile("./NN/logdata.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	f, err := os.OpenFile("./logdata.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	failOnError(err, "Error abriendo log")
 	defer f.Close()
 
@@ -281,7 +281,9 @@ func (s *server) RecibirPropDatanode(ctx context.Context, prop *book.PropuestaLi
 //responde al Cliente Downloader con las ubicaciones de los chunks del libro solicitado
 func localizacionChunks(nombreL string) (string, error) {
 
-	f, err := os.Open("./NN/logdata.txt")
+	defer timeTrack(time.Now(), "de búsqueda") //entrega el tiempo de ejecucion de la funcion
+
+	f, err := os.Open("./logdata.txt")
 	failOnError(err, "Error en abrir log")
 	defer f.Close()
 
@@ -340,7 +342,7 @@ func ListaLibrosLog() (string, error) {
 
 	var listaLibros string
 
-	f, err := os.Open("./NN/logdata.txt")
+	f, err := os.Open("./logdata.txt")
 	if err != nil {
 		f.Close()
 		return "Error en abrir log", err
@@ -361,6 +363,9 @@ func ListaLibrosLog() (string, error) {
 		}
 	}
 
+	if (len(listaLibros) == 0) || (listaLibros == ""){
+		return "No hay libros disponibles", errors.New("error")
+	}
 	return listaLibros, nil
 }
 
